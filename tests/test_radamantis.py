@@ -52,9 +52,11 @@ def rad(dummy_db, tmp_path):
 
 
 @pytest.mark.parametrize("text,intent", [
-    ("/start", "menu"), ("/menu", "menu"), ("1️⃣ Total de proyectos", "total"), ("/total@SN_SPM_bot", "total"),
-    ("2", "categorias"), ("¿cuántos abiertos y cerrados?", "categorias"), ("3️⃣ Por región", "regiones"),
-    ("/programas", "programas"), ("5", "portafolios"), ("6️⃣ Calidad de datos", "calidad"), ("hola", None)])
+    ("/start", "menu"), ("/menu", "menu"), ("1️⃣ Total projects", "total"), ("/total@SN_SPM_bot", "total"),
+    ("2", "categorias"), ("how many open and closed?", "categorias"), ("3️⃣ By region", "regiones"),
+    ("/programs", "programas"), ("4️⃣ By program", "programas"), ("5", "portafolios"), ("5️⃣ By portfolio", "portafolios"),
+    ("6️⃣ Data quality", "calidad"), ("/dataquality", "calidad"), ("/categories", "categorias"), ("/regions", "regiones"),
+    ("/portfolios", "portafolios"), ("/programas", "programas"), ("6️⃣ Calidad de datos", "calidad"), ("hello", None)])
 def test_parse_intent(text, intent):
     assert parse_intent(text) == intent
 
@@ -62,7 +64,7 @@ def test_parse_intent(text, intent):
 def test_unauthorized_chat(rad):
     r, bot = rad
     res = r.handle(999, "/total")
-    assert res["status"] == "UNAUTHORIZED" and "no está autorizado" in bot.sent[-1][1]
+    assert res["status"] == "UNAUTHORIZED" and "not authorized" in bot.sent[-1][1]
 
 
 def test_six_options_answer_with_real_counts(rad):
@@ -100,10 +102,10 @@ def test_db_failure_replies_friendly_error(rad):
     r._cache = None
     res = r.handle(42, "1")
     assert res["status"] == "FAILED" and res["error"] == "E-CONN-01"
-    assert "No pude obtener los datos" in bot.sent[-1][1]
+    assert "couldn't retrieve the data" in bot.sent[-1][1]
 
 
-@pytest.mark.parametrize("text", ["PRJ1001002", "/estatus PRG0002", "/programa PRG0002", "pfl0001"])
+@pytest.mark.parametrize("text", ["PRJ1001002", "/status PRG0002", "/estatus PRG0002", "/programs PRG0002", "pfl0001", "7️⃣ Status by ID (project / program / portfolio)"])
 def test_id_routes_to_status(text):
     assert parse_intent(text) == "estatus"
 
@@ -113,15 +115,15 @@ def test_status_project_has_19_kpis(rad):
     res = r.handle(42, "PRJ1001002")["answer"]
     assert res["found"] and res["analyzed"]
     txt = bot.sent[-1][1]
-    for n in ["1 Overall", "2 Cronograma", "3 Costo", "4 Recursos", "5 Alcance", "6 Avance", "7-8 Plan", "9-10 Real",
-              "11-12 Costo", "13 Esfuerzo", "14 Hitos", "15 Riesgos", "16 Issues", "17 Decisiones", "18 Acciones",
-              "19 Cambios"]:
+    for n in ["1 Overall", "2 Schedule", "3 Cost", "4 Resources", "5 Scope", "6 Progress", "7-8 Planned", "9-10 Actual",
+              "11-12 Cost", "13 Effort", "14 Milestones", "15 Risks", "16 Issues", "17 Decisions", "18 Actions",
+              "19 Change requests"]:
         assert n in txt, n
 
 
 def test_status_rollup_counts_match_inventory(rad):
     r, _ = rad
-    res = r.handle(42, "/estatus PFL0001")["answer"]
+    res = r.handle(42, "/status PFL0001")["answer"]
     assert res["found"] and res["level"] == "portafolio"
     assert res["total"] == len(res["projects"])
     d = res["rollup"]["distribution"]["overall"]
@@ -133,9 +135,9 @@ def test_status_excluded_and_not_found(rad):
     res = r.handle(42, "PRJ1001062")["answer"]                  # DQ-03 en los datos sintéticos
     assert res["found"] and not res["analyzed"] and "excluido" in res["why"]
     r.handle(42, "PRJ9999999")
-    assert "No encontré" in bot.sent[-1][1]
-    r.handle(42, "7️⃣ Estatus por ID (proyecto / programa / portafolio)")
-    assert "Escribe el ID" in bot.sent[-1][1]
+    assert "couldn't find project" in bot.sent[-1][1]
+    r.handle(42, "7️⃣ Status by ID (project / program / portfolio)")
+    assert "Type the ID" in bot.sent[-1][1]
 
 
 @pytest.mark.parametrize("code", ["PRJ1001002", "PRG0002", "PFL0001"])
@@ -148,4 +150,26 @@ def test_status_sends_chart(rad, code):
 def test_no_chart_for_excluded_project_still_answers_text(rad):
     r, bot = rad
     res = r.handle(42, "PRJ1001062")
-    assert res["chart"] is False and "Sin KPIs" in bot.sent[-1][1] and bot.sent[-1][2]   # menú va con el texto
+    assert res["chart"] is False and "No KPIs" in bot.sent[-1][1] and bot.sent[-1][2]   # menú va con el texto
+
+
+SPANISH = ["Proyectos", "proyecto", "Salud", "Costo", "Riesgos", "Hitos", "datos leídos", "Fuente", "Calidad", "Sin ",
+           "Verde", "Amarillo", "Rojo", "DATO_FALTANTE", "Abierto", "En progreso", "Cerrado", "pendientes", "vencid",
+           "Alta", "Media", "Baja", "región", "activos"]
+
+
+def test_all_replies_are_in_english(rad):
+    """Labels written by the bot must be English (names stored in the DB may stay in Spanish)."""
+    r, bot = rad
+    for t in ["/start", "1", "2", "3", "4", "5", "6", "7", "PRJ1001002", "PRJ1001062", "PRG0002", "PFL0001", "zzz"]:
+        r.handle(42, t)
+    import re
+    for _, text, _ in bot.sent:
+        # strip project/program names and states that come from the database
+        clean = re.sub(r"<b>(PRJ|PRG|PFL)\d+</b>[^\n]*", "", text)
+        clean = re.sub(r"\((?:[a-z_]+|\(empty\))\)", "", clean)
+        clean = re.sub(r"(Region|PM|Owner): [^·\n]*", "", clean)
+        clean = re.sub(r"— [^\n]*", "", clean) if "Projects by category" in text else clean
+        clean = re.sub(r"• <b>[^<]*</b>(?: [^:]*)?:", "•", clean)
+        for w in SPANISH:
+            assert w not in clean, (w, clean[:400])

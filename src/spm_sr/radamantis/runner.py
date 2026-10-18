@@ -40,13 +40,13 @@ class BotRunner:
         self.rad = Radamantis(self.settings, schema_map, thresholds, self.zeus, allowed_chat_ids=self.allowed,
                               cache_ttl_s=cache_ttl_s)
         self.stop_event = threading.Event()
-        self.status: dict[str, Any] = {"state": "creado", "started_at": None, "last_poll": None, "handled": 0,
+        self.status: dict[str, Any] = {"state": "created", "started_at": None, "last_poll": None, "handled": 0,
                                        "by_intent": {}, "errors": 0, "last_error": None,
                                        "allowed_chats": len(self.allowed), "db_origin": self.settings["db"].get("url_origin")}
 
     def _record(self, res: dict) -> None:
         self.status["handled"] += 1
-        k = res.get("intent") or "otro"
+        k = res.get("intent") or "other"
         self.status["by_intent"][k] = self.status["by_intent"].get(k, 0) + 1
         if not self.file_logs:
             return
@@ -56,7 +56,7 @@ class BotRunner:
 
     def run(self, once: bool = False, max_minutes: float = 0) -> int:
         if not secret("TELEGRAM_BOT_TOKEN"):
-            self.status.update(state="sin token", last_error="Falta TELEGRAM_TOKEN")
+            self.status.update(state="no token", last_error="TELEGRAM_TOKEN is missing")
             log.error("Falta TELEGRAM_TOKEN")
             return 2
         try:
@@ -64,7 +64,7 @@ class BotRunner:
             self.api.set_my_commands(COMMANDS)
         except SendError as e:
             log.warning("No se registraron comandos: %s", e)
-        self.status.update(state="escuchando", started_at=now_iso())
+        self.status.update(state="listening", started_at=now_iso())
         log.info("Radamantis escuchando · chats autorizados: %s", len(self.allowed))
         deadline = time.time() + max_minutes * 60 if max_minutes else None
         offset, backoff = None, 2
@@ -98,5 +98,5 @@ class BotRunner:
                 break
             if deadline and time.time() > deadline:
                 break
-        self.status["state"] = "detenido"
+        self.status["state"] = "stopped"
         return 0

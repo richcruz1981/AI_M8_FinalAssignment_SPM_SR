@@ -24,18 +24,10 @@ from spm_sr.core.util import json_default  # noqa: E402
 from spm_sr.cronos import Cronos  # noqa: E402
 from spm_sr.thanatos import Thanatos  # noqa: E402
 from spm_sr.thanatos.queries import DQ_LABELS, category  # noqa: E402
+from spm_sr.zeus import i18n  # noqa: E402
 
 HEALTH = ("overall", "schedule", "cost", "resources", "scope")
-EN_HEALTH = {"Verde": "Green", "Amarillo": "Amber", "Rojo": "Red", "DATO_FALTANTE": "No data", None: "No data"}
-EN_CMP = {"Optimismo": "Optimistic", "Conservador": "Conservative", "Consistente": "Consistent",
-          "No comparable": "Not comparable"}
-EN_CAT = {"Abierto": "Open", "En progreso": "In progress", "En pausa": "On hold", "Cerrado": "Closed",
-          "Cancelado": "Cancelled", "Otro": "Other"}
-EN_DQ = {"DQ-01": "Missing status report", "DQ-02": "Stale status report", "DQ-03": "Invalid % complete",
-         "DQ-04": "Invalid or empty planned dates", "DQ-05": "Progress without actual start",
-         "DQ-06": "Missing planned cost or effort", "DQ-07": "No PM or PM without email",
-         "DQ-08": "Empty declared health", "DQ-09": "Duplicate record", "DQ-10": "Missing region"}
-EN_SEV = {"Alta": "High", "Media": "Medium", "Baja": "Low"}
+EN_HEALTH, EN_CMP, EN_CAT, EN_DQ, EN_SEV = i18n.HEALTH, i18n.CMP, i18n.CATEGORY, i18n.DQ, i18n.SEVERITY
 
 
 def en_alerts(rec: dict) -> list[str]:

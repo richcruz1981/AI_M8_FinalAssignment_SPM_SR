@@ -19,13 +19,16 @@ from __future__ import annotations
 import io
 from typing import Any
 
+from . import i18n
+
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e6e5e0"
 STATUS = {"Verde": "#0ca30c", "Amarillo": "#fab219", "Rojo": "#d03b3b", "DATO_FALTANTE": "#b7b6b0"}
-STATUS_LBL = {"Verde": "Verde", "Amarillo": "Amarillo", "Rojo": "Rojo", "DATO_FALTANTE": "Sin dato"}
+STATUS_LBL = {"Verde": "Green", "Amarillo": "Amber", "Rojo": "Red", "DATO_FALTANTE": "No data"}
 SEVERITY = {"Alta": "#d03b3b", "Media": "#ec835a", "Baja": "#fab219"}
+SEV_LBL = {"Alta": "High", "Media": "Medium", "Baja": "Low"}
 BLUE, BLUE_LIGHT = "#2a78d6", "#86b6ef"
-HEALTH_KEYS = (("overall", "Overall"), ("schedule", "Cronograma"), ("cost", "Costo"),
-               ("resources", "Recursos"), ("scope", "Alcance"))
+HEALTH_KEYS = (("overall", "Overall"), ("schedule", "Schedule"), ("cost", "Cost"),
+               ("resources", "Resources"), ("scope", "Scope"))
 
 
 def _plt():
@@ -69,7 +72,7 @@ def _png(fig, plt, header_in: float = 0.75) -> bytes:
     return buf.getvalue()
 
 
-def _hbars(plt, labels, values, colors, title, subtitle, total=None, xlabel="Proyectos", legend=None):
+def _hbars(plt, labels, values, colors, title, subtitle, total=None, xlabel="Projects", legend=None):
     h = max(2.4, 0.42 * len(labels) + 1.4)
     fig, ax = _fig(plt, h)
     y = list(range(len(labels)))[::-1]
@@ -91,7 +94,7 @@ def _hbars(plt, labels, values, colors, title, subtitle, total=None, xlabel="Pro
     return _png(fig, plt, 0.62 if legend else 0.75)
 
 
-def _stacked(plt, labels, series: list[tuple[str, str, list[int]]], title, subtitle, pct=False, xlabel="Proyectos"):
+def _stacked(plt, labels, series: list[tuple[str, str, list[int]]], title, subtitle, pct=False, xlabel="Projects"):
     h = max(2.6, 0.42 * len(labels) + 1.8)
     fig, ax = _fig(plt, h)
     y = list(range(len(labels)))[::-1]
@@ -128,51 +131,51 @@ def _total(plt, r):
     ov = r["overall"]
     keys = ["Verde", "Amarillo", "Rojo", "DATO_FALTANTE"]
     return _hbars(plt, [STATUS_LBL[k] for k in keys], [ov.get(k, 0) for k in keys], [STATUS[k] for k in keys],
-                  f"Salud calculada · {r['analizados']} proyectos activos analizados",
-                  f"Total en la base: {r['total']} · activos {r['activos']} · cerrados/cancelados "
-                  f"{r['cerrados_cancelados']} · excluidos por calidad {r['excluidos_dq']}", total=r["analizados"])
+                  f"Calculated health · {r['analizados']} active analyzed projects",
+                  f"Total in database: {r['total']} · active {r['activos']} · closed/cancelled "
+                  f"{r['cerrados_cancelados']} · excluded by data quality {r['excluidos_dq']}", total=r["analizados"])
 
 
 def _categorias(plt, r):
     rows = sorted(r["rows"], key=lambda x: -x["n"])
-    return _hbars(plt, [x["categoria"] for x in rows], [x["n"] for x in rows], [BLUE] * len(rows),
-                  "Proyectos por categoría de estado", f"Total: {r['total']} proyectos", total=r["total"])
+    return _hbars(plt, [i18n.cat(x["categoria"]) for x in rows], [x["n"] for x in rows], [BLUE] * len(rows),
+                  "Projects by state category", f"Total: {r['total']} projects", total=r["total"])
 
 
 def _regiones(plt, r):
     if not r.get("available") or not r["rows"]:
         return None
     rows = r["rows"]
-    return _stacked(plt, [x["region"] for x in rows],
-                    [("Activos", BLUE, [x["activos"] for x in rows]),
-                     ("Cerrados / cancelados", BLUE_LIGHT, [x["n"] - x["activos"] for x in rows])],
-                    "Proyectos por región", f"Total: {r['total']} · región = campo personalizado u_region")
+    return _stacked(plt, [i18n.ph(x["region"]) for x in rows],
+                    [("Active", BLUE, [x["activos"] for x in rows]),
+                     ("Closed / cancelled", BLUE_LIGHT, [x["n"] - x["activos"] for x in rows])],
+                    "Projects by region", f"Total: {r['total']} · region = custom field u_region")
 
 
 def _padres(plt, r, top_n=15):
     rows = [x for x in r["rows"] if x["n"]][:top_n]
     if not rows:
         return None
-    lbl = "programa" if r["kind"] == "programas" else "portafolio"
+    lbl = "program" if r["kind"] == "programas" else "portfolio"
     other = [x["n"] - x["verde"] - x["amarillo"] - x["rojo"] for x in rows]
-    return _stacked(plt, [str(x["number"]) for x in rows],
-                    [("Verde", STATUS["Verde"], [x["verde"] for x in rows]),
-                     ("Amarillo", STATUS["Amarillo"], [x["amarillo"] for x in rows]),
-                     ("Rojo", STATUS["Rojo"], [x["rojo"] for x in rows]),
-                     ("Cerrado / sin analizar", STATUS["DATO_FALTANTE"], other)],
-                    f"Proyectos por {lbl} y salud calculada",
-                    f"Top {len(rows)} de {r['con_proyectos']} con proyectos (ordenados por número de proyectos)")
+    return _stacked(plt, [i18n.ph(x["number"]) for x in rows],
+                    [("Green", STATUS["Verde"], [x["verde"] for x in rows]),
+                     ("Amber", STATUS["Amarillo"], [x["amarillo"] for x in rows]),
+                     ("Red", STATUS["Rojo"], [x["rojo"] for x in rows]),
+                     ("Closed / not analyzed", STATUS["DATO_FALTANTE"], other)],
+                    f"Projects by {lbl} and calculated health",
+                    f"Top {len(rows)} of {r['con_proyectos']} with projects (sorted by number of projects)")
 
 
 def _calidad(plt, r):
     rows = sorted(r["rows"], key=lambda x: -x["n"])
     if not rows:
         return None
-    fig_bytes = _hbars(plt, [f"{x['rule']} {x['label']}" for x in rows], [x["n"] for x in rows],
+    fig_bytes = _hbars(plt, [f"{x['rule']} {i18n.dq(x['rule'], x['label'])}" for x in rows], [x["n"] for x in rows],
                        [SEVERITY.get(x["severity"], STATUS["DATO_FALTANTE"]) for x in rows],
-                       "Proyectos con problemas de calidad de datos",
-                       f"{r['proyectos_afectados']} afectados de {r['evaluados']} activos evaluados · color = severidad",
-                       legend=[(f"Severidad {k}", v) for k, v in SEVERITY.items()])
+                       "Projects with data-quality issues",
+                       f"{r['proyectos_afectados']} affected of {r['evaluados']} active projects evaluated · color = severity",
+                       legend=[(f"{SEV_LBL[k]} severity", v) for k, v in SEVERITY.items()])
     return fig_bytes
 
 
@@ -189,21 +192,21 @@ def _estatus_proyecto(plt, r):
     ax1.set_ylim(0, 2)
     ax1.axis("off")
     for i, (k, lbl) in enumerate(HEALTH_KEYS):
-        for j, (src, name) in enumerate((("calculated", "Calculado"), ("declared", "PM declara"))):
+        for j, (src, name) in enumerate((("calculated", "Calculated"), ("declared", "PM declared"))):
             v = h[k][src] or "DATO_FALTANTE"
             ax1.add_patch(plt.Rectangle((i + 0.04, 1 - j + 0.06), 0.92, 0.84, color=STATUS.get(v, STATUS["DATO_FALTANTE"])))
-            ax1.text(i + 0.5, 1 - j + 0.48, STATUS_LBL.get(v, "Sin dato"), ha="center", va="center", fontsize=8.5,
+            ax1.text(i + 0.5, 1 - j + 0.48, STATUS_LBL.get(v, "No data"), ha="center", va="center", fontsize=8.5,
                      color=INK if v in ("Amarillo", "DATO_FALTANTE") else "white", fontweight="bold")
         ax1.text(i + 0.5, 2.03, lbl, ha="center", va="bottom", fontsize=9, color=INK)
-    ax1.text(-0.05, 1.48, "Calculado", ha="right", va="center", fontsize=8.5, color=INK2)
-    ax1.text(-0.05, 0.48, "PM declara", ha="right", va="center", fontsize=8.5, color=INK2)
+    ax1.text(-0.05, 1.48, "Calculated", ha="right", va="center", fontsize=8.5, color=INK2)
+    ax1.text(-0.05, 0.48, "PM declared", ha="right", va="center", fontsize=8.5, color=INK2)
     # Panel 2: porcentajes comparables (misma unidad, un solo eje)
     s, c, rs = perf["schedule"], perf["cost"], perf["resources"]
     pe, ae = rs.get("planned_effort"), rs.get("actual_effort")
-    items = [("Avance real", s.get("percent_complete"), BLUE),
-             ("Avance esperado (lineal)", s.get("expected_pct"), BLUE_LIGHT),
-             ("Presupuesto consumido", c.get("consumption_pct"), "#6250d6"),
-             ("Esfuerzo consumido", round(100 * ae / pe, 1) if pe and ae is not None else None, "#1baf7a")]
+    items = [("Actual progress", s.get("percent_complete"), BLUE),
+             ("Expected progress (linear)", s.get("expected_pct"), BLUE_LIGHT),
+             ("Budget used", c.get("consumption_pct"), "#6250d6"),
+             ("Effort used", round(100 * ae / pe, 1) if pe and ae is not None else None, "#1baf7a")]
     items = [x for x in items if x[1] is not None]
     for sp in ("top", "right", "left"):
         ax2.spines[sp].set_visible(False)
@@ -220,9 +223,9 @@ def _estatus_proyecto(plt, r):
     ax2.set_xlim(0, max(110, max(x[1] for x in items) * 1.15))
     ax2.axvline(100, color=INK2, linewidth=0.8, linestyle=(0, (3, 3)))
     ax2.xaxis.set_major_formatter(lambda v, _: f"{v:.0f}%")
-    fig.text(0.02, 0.985, f"{r['code']} · salud y avance", fontsize=12, fontweight="bold", color=INK, va="top")
-    fig.text(0.02, 0.945, f"CPI {c.get('cpi') if c.get('cpi') is not None else 'n/c'} · brecha de avance "
-             f"{s.get('gap_pp')} pp · línea punteada = 100 %", fontsize=8.5, color=INK2, va="top")
+    fig.text(0.02, 0.985, f"{r['code']} · health and progress", fontsize=12, fontweight="bold", color=INK, va="top")
+    fig.text(0.02, 0.945, f"CPI {c.get('cpi') if c.get('cpi') is not None else 'n/a'} · progress gap "
+             f"{s.get('gap_pp')} pp · dashed line = 100%", fontsize=8.5, color=INK2, va="top")
     fig.tight_layout(rect=(0.06, 0, 1, 0.9))
     buf = io.BytesIO()
     fig.savefig(buf, format="png", facecolor=SURFACE)
@@ -238,9 +241,9 @@ def _estatus_rollup(plt, r):
     labels = [lbl for _, lbl in HEALTH_KEYS]
     series = [(STATUS_LBL[s], STATUS[s], [d[k][s]["n"] for k, _ in HEALTH_KEYS])
               for s in ("Verde", "Amarillo", "Rojo", "DATO_FALTANTE")]
-    return _stacked(plt, labels, series, f"{r['code']} · salud por KPI ({r['analizados']} proyectos analizados)",
-                    f"Peor caso: {STATUS_LBL.get(ru['worst_overall'], ru['worst_overall'])} · "
-                    f"presupuesto en Rojo: {ru.get('budget_in_red_pct')}%", pct=True, xlabel="% de proyectos")
+    return _stacked(plt, labels, series, f"{r['code']} · health by KPI ({r['analizados']} analyzed projects)",
+                    f"Worst case: {STATUS_LBL.get(ru['worst_overall'], ru['worst_overall'])} · "
+                    f"budget in Red: {ru.get('budget_in_red_pct')}%", pct=True, xlabel="% of projects")
 
 
 def render_chart(res: dict[str, Any]) -> bytes | None:

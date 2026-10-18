@@ -30,15 +30,15 @@ from ..zeus.charts import render_chart
 log = logging.getLogger("spm_sr.radamantis")
 
 _ID_RX = r"\b(PRJ|PRG|PFL)\d{3,}\b"
-_PATTERNS = [
-    ("menu", r"^/?(start|menu|ayuda|help)\b"),
-    ("estatus", r"^/(estatus|status|proyecto|kpi)\b|^7\b|^7️⃣|estatus por id"),
+_PATTERNS = [   # English first; Spanish aliases kept so existing habits still work
+    ("menu", r"^/?(start|menu|help|ayuda)\b"),
+    ("estatus", r"^/(status|estatus|project|proyecto|kpi)\b|^7\b|^7️⃣|status by id|estatus por id"),
     ("total", r"^/total\b|^1\b|^1️⃣|\btotal\b"),
-    ("categorias", r"^/categor|^2\b|^2️⃣|categor|estado|abiert|cerrad"),
+    ("categorias", r"^/categor|^2\b|^2️⃣|categor|\bstate\b|estado|\bopen\b|\bclosed\b|abiert|cerrad"),
     ("regiones", r"^/region|^3\b|^3️⃣|regi[oó]n"),
-    ("programas", r"^/programa|^4\b|^4️⃣|programa"),
-    ("portafolios", r"^/portafolio|^5\b|^5️⃣|portafolio|portfolio"),
-    ("calidad", r"^/calidad|^6\b|^6️⃣|calidad|data quality|\bdq\b|faltan"),
+    ("programas", r"^/program|^4\b|^4️⃣|program"),
+    ("portafolios", r"^/portfolio|^/portafolio|^5\b|^5️⃣|portafolio|portfolio"),
+    ("calidad", r"^/(dataquality|quality|calidad)|^6\b|^6️⃣|calidad|data.?quality|\bdq\b|missing|faltan"),
 ]
 
 
@@ -116,7 +116,7 @@ class Radamantis:
         cronos_out, thanatos_out, when, errors = self._data()
         if cronos_out["signal"]["status"] == Signal.FAILED.value:
             err = next((e for e in errors if e.blocking), None)
-            code, detail = (err.code, err.message) if err else ("E-DATA", "Lectura fallida")
+            code, detail = (err.code, err.message) if err else ("E-DATA", "Read failed")
             result.update(status="FAILED", error=code,
                           deliveries=self.zeus.reply(chat, render_bot.error(code, detail), render_bot.keyboard()))
             return result
@@ -127,7 +127,7 @@ class Radamantis:
             res = answer(intent, cronos_out, thanatos_out)
             msgs = render_bot.render(res, when)
         png = render_chart(res)
-        caption = f"📊 Gráfica · datos leídos {when}" if png else ""
+        caption = f"📊 Chart · data read {when}" if png else ""
         result.update(status="OK", answer=res, chart=bool(png),
                       deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard(), photo=png, caption=caption))
         result["latency_s"] = round(time.monotonic() - started, 2)

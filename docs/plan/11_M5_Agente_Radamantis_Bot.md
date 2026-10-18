@@ -14,14 +14,16 @@ flowchart LR
 ```
 
 ## Opciones del bot
+El bot responde en **inglés** (textos, botones, comandos y gráficas; traducción en `zeus/i18n.py`). Los nombres guardados en la BD (proyectos, regiones, personas) se muestran tal cual. Los comandos en español (`/categorias`, `/calidad`, `/estatus`…) siguen funcionando como alias.
+
 | # | Comando | Respuesta | Fuente |
 |---|---|---|---|
 | 1 | `/total` | Total, activos, cerrados/cancelados, analizados, excluidos DQ, salud calculada | `pm_project` (inventario) |
-| 2 | `/categorias` | Abierto / En progreso / En pausa / Cerrado / Cancelado, con estados originales | `pm_project.state` |
-| 3 | `/regiones` | Proyectos y activos por región | `pm_project.u_region` (**campo personalizado, SUPUESTO**) |
-| 4 | `/programas` | Proyectos (activos) y salud 🟢🟡🔴 por programa; programas sin proyectos | `pm_project.primary_program` |
-| 5 | `/portafolios` | Igual, por portafolio | `pm_project.primary_portfolio` |
-| 6 | `/calidad` | Proyectos con problemas de datos agrupados por regla DQ-01…DQ-10 | Reglas DQ de Cronos |
+| 2 | `/categories` | Open / In progress / On hold / Closed / Cancelled, con estados originales | `pm_project.state` |
+| 3 | `/regions` | Proyectos y activos por región | `pm_project.u_region` (**campo personalizado, SUPUESTO**) |
+| 4 | `/programs` | Proyectos (activos) y salud 🟢🟡🔴 por programa; programas sin proyectos | `pm_project.primary_program` |
+| 5 | `/portfolios` | Igual, por portafolio | `pm_project.primary_portfolio` |
+| 6 | `/dataquality` | Proyectos con problemas de datos agrupados por regla DQ-01…DQ-10 | Reglas DQ de Cronos |
 
 ## Gráficas (una por opción, `zeus/charts.py`)
 | Opción | Forma | Por qué |
