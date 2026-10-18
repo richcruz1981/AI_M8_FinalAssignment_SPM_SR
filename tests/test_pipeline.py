@@ -159,7 +159,7 @@ def test_redirect_sends_everything_to_one_chat_with_original_recipient(cfg):
     assert tg.sent and set(tg.sent) == {"999"}
     outbox = Path(settings["runs_dir"]) / AS_OF.isoformat() / "outbox"
     msg = json.loads(next(outbox.glob("*telegram.json")).read_text())["messages"][0]
-    assert "Destinatario original" in msg
+    assert "Original recipient" in msg
 
 
 def test_send_failure_retries_and_fails(cfg):

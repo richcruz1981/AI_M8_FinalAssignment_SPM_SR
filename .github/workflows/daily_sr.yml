@@ -45,7 +45,8 @@ jobs:
       HAS_HATCH_KEY: ${{ secrets.HATCH_KEY != '' }}
       TUNNEL_SSH_TARGET: ${{ vars.TUNNEL_SSH_TARGET }}
       TUNNEL_REMOTE_PORT: ${{ vars.TUNNEL_REMOTE_PORT || '56432' }}
-      LLM_ENABLED: ${{ vars.LLM_ENABLED || 'true' }}
+      # Resumen con IA en las dos corridas programadas (07:00 y 15:00); manuales: variable LLM_ENABLED
+      LLM_ENABLED: ${{ github.event_name == 'schedule' && 'true' || vars.LLM_ENABLED || 'true' }}
       SCOPE: ${{ inputs.scope || vars.SCOPE || 'all' }}
       # Corridas programadas envían de verdad (SCHEDULE_DRY_RUN=true las pone en simulacro); manuales: input dry_run
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.SCHEDULE_DRY_RUN || 'false' }}
@@ -144,8 +145,13 @@ jobs:
               st = {}
               for x in z.get("deliveries", []):
                   st[x["status"]] = st.get(x["status"], 0) + 1
+              t = json.load(open(d + "thanatos.json")) if os.path.exists(d + "thanatos.json") else {}
+              nar = [x.get("narrative", {}) for x in t.get("project_reports", []) + t.get("rollups", [])]
+              llm = [n for n in nar if n.get("source") == "llm"]
+              sample = (llm[0]["text"] if llm else "").replace("\n", " ")[:220]
               print(f"::notice title=SR {os.environ.get('SR_SLOT')}::BD={os.environ.get('DB_SOURCE')} · dry_run={os.environ.get('DRY_RUN')} · "
-                    f"Cronos={c.get('status')} ({c.get('records_in')} proyectos) · entregas {st}")
+                    f"Cronos={c.get('status')} ({c.get('records_in')} proyectos) · entregas {st} · "
+                    f"IA {len(llm)}/{len(nar)} narrativas · ejemplo IA: {sample}")
           PY
           f=$(ls runs/*/failure_report.md 2>/dev/null | tail -1)
           if [ -n "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi

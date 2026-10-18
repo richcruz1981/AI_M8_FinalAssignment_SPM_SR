@@ -8,23 +8,24 @@ from typing import Any
 from .state import RunState
 from .util import write_json
 
+SEV = {"Alta": "High", "Media": "Medium", "Baja": "Low"}
 ACTIONS = {
-    "E-CONN-01": "Verificar que la réplica esté encendida, accesible desde este equipo/runner y que DB_URL sea correcta.",
-    "E-CONN-02": "Revisar usuario/contraseña de la BD en los secrets / .env.",
-    "E-CONN-03": "Revisar formato de DB_URL e instalar el driver del motor (psycopg2, pymysql, pyodbc).",
-    "E-SCHEMA-01": "La tabla núcleo no existe o le faltan columnas: ajustar config/schema_map.yaml.",
-    "E-SCHEMA-02": "Tabla auxiliar ausente: los KPIs asociados salen como DATO_FALTANTE.",
-    "E-SCHEMA-03": "Columnas opcionales ausentes: revisar config/schema_map.yaml.",
-    "E-READ-01": "Reintentar; revisar permisos SELECT y bloqueos en la réplica.",
-    "E-DATA-00": "Ningún proyecto válido: revisar alcance (SCOPE) y hallazgos DQ.",
-    "E-CALC-00": "Thanatos no recibió datos válidos de Cronos.",
-    "E-CALC-01": "Revisar el proyecto indicado; el resto de la corrida continuó.",
-    "E-LLM-01": "Se usó la plantilla determinista; revisar ANTHROPIC_API_KEY / modelo.",
-    "E-LLM-02": "El LLM citó cifras que no están en los datos; se usó la plantilla determinista (control funcionando).",
-    "E-LLM-03": "El LLM devolvió texto vacío; se usó la plantilla determinista.",
-    "E-SEND-01": "Revisar TELEGRAM_TOKEN, que el destinatario haya enviado /start al bot y la conectividad.",
-    "E-SEND-02": "Registrar el chat_id del destinatario (RECIPIENTS_YAML; /start en el bot) o usar REDIRECT_TELEGRAM_CHAT_ID.",
-    "E-SEND-03": "Configurar el secret TELEGRAM_TOKEN.",
+    "E-CONN-01": "Check that the replica is up, reachable from this machine/runner, and that DB_URL is correct.",
+    "E-CONN-02": "Check the DB user/password in the secrets / .env.",
+    "E-CONN-03": "Check the DB_URL format and install the engine driver (psycopg, pymysql, pyodbc).",
+    "E-SCHEMA-01": "The core table is missing or lacks columns: adjust config/schema_map.yaml.",
+    "E-SCHEMA-02": "Auxiliary table missing: related KPIs are reported as no data.",
+    "E-SCHEMA-03": "Optional columns missing: review config/schema_map.yaml.",
+    "E-READ-01": "Retry; check SELECT permissions and locks on the replica.",
+    "E-DATA-00": "No valid projects: review the scope (SCOPE) and DQ findings.",
+    "E-CALC-00": "Thanatos received no valid data from Cronos.",
+    "E-CALC-01": "Review the project indicated; the rest of the run continued.",
+    "E-LLM-01": "The deterministic template was used; check ANTHROPIC_API_KEY / model.",
+    "E-LLM-02": "The LLM cited figures not present in the data; the deterministic template was used (control working).",
+    "E-LLM-03": "The LLM returned empty text; the deterministic template was used.",
+    "E-SEND-01": "Check TELEGRAM_TOKEN, that the recipient sent /start to the bot, and connectivity.",
+    "E-SEND-02": "Register the recipient chat_id (RECIPIENTS_YAML; /start in the bot) or use REDIRECT_TELEGRAM_CHAT_ID.",
+    "E-SEND-03": "Set the TELEGRAM_TOKEN secret.",
 }
 
 
@@ -48,33 +49,33 @@ def build_failure_report(state: RunState) -> dict[str, Any]:
         "data_quality": {"by_rule": dict(Counter(f["rule"] for f in dq)),
                          "top": [f for f in dq if f["severity"] == "Alta"][:10]},
         "impact_dato_faltante": dict(df_kpis),
-        "suggested_actions": {e.code: ACTIONS.get(e.code, "Revisar log de la corrida") for e in state.errors},
+        "suggested_actions": {e.code: ACTIONS.get(e.code, "Review the run log") for e in state.errors},
     }
 
 
 def failure_markdown(rep: dict[str, Any]) -> str:
-    L = [f"# Reporte de Fallas · {rep['run_date']}", "",
-         f"- run_id: `{rep['run_id']}`", f"- Estado final: **{rep['final_status']}**",
-         f"- Señales: Cronos={rep['signals']['cronos']} · Thanatos={rep['signals']['thanatos']} · Zeus={rep['signals']['zeus']}",
-         "", "## Errores", "| Código | Agente | Severidad | Bloqueante | Mensaje |", "|---|---|---|---|---|"]
+    L = [f"# Failure Report · {rep['run_date']}", "",
+         f"- run_id: `{rep['run_id']}`", f"- Final status: **{rep['final_status']}**",
+         f"- Signals: Cronos={rep['signals']['cronos']} · Thanatos={rep['signals']['thanatos']} · Zeus={rep['signals']['zeus']}",
+         "", "## Errors", "| Code | Agent | Severity | Blocking | Message |", "|---|---|---|---|---|"]
     for e in rep["errors"]:
-        L.append(f"| {e['code']} | {e['agent']} | {e['severity']} | {'Sí' if e['blocking'] else 'No'} | {e['message']} |")
+        L.append(f"| {e['code']} | {e['agent']} | {SEV.get(e['severity'], e['severity'])} | {'Yes' if e['blocking'] else 'No'} | {e['message']} |")
     if not rep["errors"]:
-        L.append("| — | — | — | — | Sin errores |")
-    L += ["", "## Disponibilidad de fuentes", "| Fuente | Tabla | Existe | Filas |", "|---|---|---|---|"]
+        L.append("| — | — | — | — | No errors |")
+    L += ["", "## Source availability", "| Source | Table | Exists | Rows |", "|---|---|---|---|"]
     for k, v in rep["source_availability"].items():
-        L.append(f"| {k} | {v.get('table')} | {'Sí' if v.get('exists') else 'No'} | {v.get('rows', 0)} |")
-    L += ["", "## Calidad de datos", "| Regla | Hallazgos |", "|---|---|"]
+        L.append(f"| {k} | {v.get('table')} | {'Yes' if v.get('exists') else 'No'} | {v.get('rows', 0)} |")
+    L += ["", "## Data quality", "| Rule | Findings |", "|---|---|"]
     for k, v in sorted(rep["data_quality"]["by_rule"].items()):
         L.append(f"| {k} | {v} |")
     if rep["data_quality"]["top"]:
-        L += ["", "Top hallazgos de severidad Alta:", "| Regla | Proyecto | Campo | Valor | Excluido |", "|---|---|---|---|---|"]
+        L += ["", "Top high-severity findings:", "| Rule | Project | Field | Value | Excluded |", "|---|---|---|---|---|"]
         for f in rep["data_quality"]["top"]:
-            L.append(f"| {f['rule']} | {f['project_number']} | {f['field']} | {f['value']} | {'Sí' if f['excluded'] else 'No'} |")
-    L += ["", "## Impacto (KPIs en DATO_FALTANTE, conteo de proyectos)"]
-    L += [f"- {k}: {v}" for k, v in rep["impact_dato_faltante"].items()] or ["- Ninguno"]
-    L += ["", "## Acciones sugeridas"]
-    L += [f"- **{k}**: {v}" for k, v in rep["suggested_actions"].items()] or ["- Ninguna"]
+            L.append(f"| {f['rule']} | {f['project_number']} | {f['field']} | {f['value']} | {'Yes' if f['excluded'] else 'No'} |")
+    L += ["", "## Impact (KPIs with no data, project count)"]
+    L += [f"- {k}: {v}" for k, v in rep["impact_dato_faltante"].items()] or ["- None"]
+    L += ["", "## Suggested actions"]
+    L += [f"- **{k}**: {v}" for k, v in rep["suggested_actions"].items()] or ["- None"]
     return "\n".join(L) + "\n"
 
 

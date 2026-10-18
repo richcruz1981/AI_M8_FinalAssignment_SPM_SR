@@ -174,8 +174,8 @@ class Zeus:
             partial = None
             if t.get("signal", {}).get("status") == Signal.PARTIAL.value:
                 q = t.get("quality_summary", {})
-                partial = (f"la corrida global excluyó {q.get('excluded', 0)} proyecto(s) por calidad de datos "
-                           f"y registró {q.get('findings', 0)} hallazgo(s); el administrador recibe el detalle.")
+                partial = (f"this run excluded {q.get('excluded', 0)} project(s) for data quality "
+                           f"and logged {q.get('findings', 0)} finding(s); the administrator has the details.")
             for rc in t.get("recipients_plan", []):
                 chat, active, redirected = self._target(rc.get("email"))
                 if not active:

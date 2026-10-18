@@ -13,62 +13,71 @@ log = logging.getLogger("spm_sr.thanatos.narrative")
 NUM_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
 
 SYSTEM_PROMPT = (
-    "Eres analista de una PMO. Redacta en español de México un resumen ejecutivo de máximo 80 palabras "
-    "a partir EXCLUSIVAMENTE del JSON recibido. Reglas: (1) usa solo cifras que aparezcan literalmente en el JSON; "
-    "(2) no inventes causas ni afirmes causalidad entre indicadores; (3) si un dato es DATO_FALTANTE dilo así; "
-    "(4) tono profesional, frases directas; (5) sin viñetas ni encabezados."
+    "You are a PMO analyst. Write an executive summary in English, 80 words maximum, based EXCLUSIVELY on the "
+    "JSON you receive. Rules: (1) use only figures that appear literally in the JSON; (2) do not invent causes or "
+    "claim causality between indicators; (3) the JSON uses Spanish codes - write them in English: Verde = Green, "
+    "Amarillo = Amber, Rojo = Red, DATO_FALTANTE = No data, Programa = Program, Portafolio = Portfolio, "
+    "Optimismo = Optimistic, Conservador = Conservative, Consistente = Consistent; if a value is DATO_FALTANTE say "
+    "'no data'; (4) professional tone, direct sentences; (5) no bullet points or headings."
 )
+
+_EN = {"Verde": "Green", "Amarillo": "Amber", "Rojo": "Red", "DATO_FALTANTE": "No data", None: "No data",
+       "Programa": "Program", "Portafolio": "Portfolio"}
+
+
+def _en(v: Any) -> str:
+    return _EN.get(v, str(v))
 
 
 def top_alerts(rep: dict[str, Any], n: int = 3) -> list[str]:
     alerts: list[str] = []
     h = rep["health"]
-    names = {"schedule": "Cronograma", "cost": "Costo", "resources": "Recursos", "scope": "Alcance"}
+    names = {"schedule": "Schedule", "cost": "Cost", "resources": "Resources", "scope": "Scope"}
     for k, label in names.items():
         if h[k]["calculated"] == "Rojo":
-            alerts.append(f"{label} en Rojo")
+            alerts.append(f"{label} is Red")
     if h["overall"]["comparison"] == "Optimismo":
-        alerts.append(f"Overall declarado {h['overall']['declared']} vs calculado {h['overall']['calculated']}")
+        alerts.append(f"Overall declared {_en(h['overall']['declared'])} vs calculated {_en(h['overall']['calculated'])}")
     ctl = rep["control"]
     if isinstance(ctl.get("milestones"), dict) and ctl["milestones"]["overdue"]:
-        alerts.append(f"{ctl['milestones']['overdue']} hito(s) vencido(s)")
+        alerts.append(f"{ctl['milestones']['overdue']} overdue milestone(s)")
     if isinstance(ctl.get("risks"), dict) and ctl["risks"]["open_high"]:
-        alerts.append(f"{ctl['risks']['open_high']} riesgo(s) alto(s) abierto(s)")
+        alerts.append(f"{ctl['risks']['open_high']} high open risk(s)")
     if rep.get("sr_stale"):
-        alerts.append("Status Report desactualizado")
+        alerts.append("Stale status report")
     for k, label in names.items():
         if h[k]["calculated"] == "Amarillo":
-            alerts.append(f"{label} en Amarillo")
+            alerts.append(f"{label} is Amber")
     return alerts[:n]
 
 
 def template_project(rep: dict[str, Any]) -> str:
     h, perf = rep["health"], rep["performance"]
     s, c = perf["schedule"], perf["cost"]
-    parts = [f"{rep['number']} · Overall {h['overall']['calculated']} (declarado: {h['overall']['declared'] or 'sin dato'})."]
+    parts = [f"{rep['number']} · Overall {_en(h['overall']['calculated'])} (PM declared: {_en(h['overall']['declared'])})."]
     if s["color"] != "DATO_FALTANTE":
-        parts.append(f"Avance {s['percent_complete']}% vs {s['expected_pct']}% esperado ({s['gap_pp']:+} pp).")
+        parts.append(f"Progress {s['percent_complete']}% vs {s['expected_pct']}% expected ({s['gap_pp']:+} pp).")
     if c["color"] != "DATO_FALTANTE":
-        cpi = c["cpi"] if c["cpi"] is not None else "n/c"
-        parts.append(f"CPI {cpi}; consumo de presupuesto {c['consumption_pct']}%.")
+        cpi = c["cpi"] if c["cpi"] is not None else "n/a"
+        parts.append(f"CPI {cpi}; budget used {c['consumption_pct']}%.")
     else:
-        parts.append("Costo: DATO_FALTANTE.")
+        parts.append("Cost: no data.")
     al = top_alerts(rep)
-    parts.append("Alertas: " + ("; ".join(al) if al else "sin alertas") + ".")
+    parts.append("Alerts: " + ("; ".join(al) if al else "none") + ".")
     return " ".join(parts)
 
 
 def template_rollup(ru: dict[str, Any]) -> str:
     if not ru.get("distribution"):
-        return f"{ru['level']} {ru.get('number') or ru.get('name')}: sin proyectos válidos."
+        return f"{_en(ru['level'])} {ru.get('number') or ru.get('name')}: no valid projects."
     d = ru["distribution"]["overall"]
-    txt = (f"{ru['level']} {ru.get('number')} ({ru['n_projects']} proyectos): Verde {d['Verde']['n']}, "
-           f"Amarillo {d['Amarillo']['n']}, Rojo {d['Rojo']['n']}, sin dato {d['DATO_FALTANTE']['n']}. "
-           f"Peor caso: {ru['worst_overall']}.")
+    txt = (f"{_en(ru['level'])} {ru.get('number')} ({ru['n_projects']} projects): Green {d['Verde']['n']}, "
+           f"Amber {d['Amarillo']['n']}, Red {d['Rojo']['n']}, no data {d['DATO_FALTANTE']['n']}. "
+           f"Worst case: {_en(ru['worst_overall'])}.")
     if ru.get("budget_in_red_pct") is not None:
-        txt += f" Presupuesto en proyectos Rojo: {ru['budget_in_red_pct']}%."
+        txt += f" Budget in Red projects: {ru['budget_in_red_pct']}%."
     if ru.get("optimism_discrepancies"):
-        txt += f" Discrepancias de optimismo: {ru['optimism_discrepancies']}."
+        txt += f" Optimistic reports (PM vs calculated): {ru['optimism_discrepancies']}."
     return txt
 
 
