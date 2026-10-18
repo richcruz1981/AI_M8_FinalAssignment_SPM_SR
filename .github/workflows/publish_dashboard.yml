@@ -132,8 +132,10 @@ jobs:
             curl -s "$SITE/dashboard/data/kpis.json" | python -c "import json,sys; d=json.load(sys.stdin); print(f\"- JSON: {len(d['projects'])} proyectos, asOf {d['asOf']}, generado {d['generatedAt']}\")"
           } | tee -a "$GITHUB_STEP_SUMMARY" | tee verify.txt
           echo "::notice title=Sitio publicado::$(tr '\n' ' ' < verify.txt)"
-          curl -s "$SITE/" | grep -q 'Proyecto Final Edgar Cruz' || { echo "::error::La portada no tiene la sección"; exit 1; }
-          curl -s "$SITE/dashboard/" | grep -q 'Portfolio Health Dashboard' || { echo "::error::/dashboard/ no es el dashboard"; exit 1; }
+          # (se guarda a archivo: con pipefail, grep -q cortaría el pipe de curl y daría falso negativo)
+          curl -s "$SITE/" -o home.html; curl -s "$SITE/dashboard/" -o dash.html
+          grep -q 'Proyecto Final Edgar Cruz' home.html || { echo "::error::La portada no tiene la sección"; exit 1; }
+          grep -q 'Portfolio Health Dashboard' dash.html || { echo "::error::/dashboard/ no es el dashboard"; exit 1; }
           [ "$(curl -s -o /dev/null -w '%{http_code}' "$SITE/dashboard/data/kpis.json")" = "200" ]
 
       - name: Cerrar túnel y borrar llave
