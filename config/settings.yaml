@@ -1,0 +1,33 @@
+# Configuración general (SIN secretos). Las variables de entorno sobrescriben estos valores.
+db:
+  url: "sqlite:///data/demo_spm.db"   # env: DB_URL
+  connect_timeout_s: 30
+  retries: 3
+  backoff_s: [5, 15, 45]
+
+# Alcance por defecto: "all" o lista de "project:<number>", "program:<number>", "portfolio:<number>"
+scope: ["all"]                        # env: SCOPE (separado por comas)
+
+dq:
+  stale_sr_days: 7                    # DQ-02 (SUPUESTO)
+
+llm:
+  enabled: true                       # requiere env ANTHROPIC_API_KEY; sin llave usa plantilla
+  model: "claude-sonnet-5-5"          # env: LLM_MODEL
+  max_tokens: 400
+  max_calls: 20
+
+notifications:
+  dry_run: true                       # env: DRY_RUN (true/false). true = no envía, guarda en outbox
+  email_enabled: true
+  telegram_enabled: true
+  telegram_include_costs: false       # privacidad: costos solo por correo
+  admin_email: ""                     # env: ADMIN_EMAIL
+  admin_telegram_chat_id: ""          # env: ADMIN_TELEGRAM_CHAT_ID
+  redirect_all_to: ""                 # env: REDIRECT_ALL_TO (pruebas: todos los correos a un buzón)
+  redirect_telegram_chat_id: ""       # env: REDIRECT_TELEGRAM_CHAT_ID
+
+runs_dir: "runs"                      # env: RUNS_DIR
+recipients_file: "config/recipients.yaml"  # env: RECIPIENTS_FILE
+schema_map: "config/schema_map.yaml"
+thresholds: "config/thresholds.yaml"

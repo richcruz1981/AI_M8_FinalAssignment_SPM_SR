@@ -1,0 +1,26 @@
+name: CI (pruebas)
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Pruebas unitarias, de contrato, integración y caos
+        run: python -m pytest -q
+      - name: Corrida de humo en dry-run con BD demo
+        run: |
+          python scripts/seed_demo_db.py
+          python main.py --dry-run

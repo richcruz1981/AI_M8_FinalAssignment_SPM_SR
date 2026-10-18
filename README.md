@@ -1,0 +1,94 @@
+# SR multi-agente para ServiceNow SPM — Cronos · Thanatos · Zeus
+
+Proceso autónomo que lee la réplica de ServiceNow SPM, calcula los KPIs estándar del Status Report (19 indicadores en 3 niveles: Salud, Desempeño, Control) y los envía diario por correo y Telegram al PM, PgM y PfM.
+
+```
+Scheduler ─► Cronos (lector) ──C1──► Thanatos (analista) ──C2──► Zeus (comunicador) ─► Correo / Telegram
+                 │ FAILED ─────────────────────────────────────► Zeus: solo reporte de fallas al Admin
+```
+
+| Agente | Hace | LLM |
+|---|---|---|
+| **Cronos** | Conecta (3 reintentos), lee tablas núcleo + auxiliares, aplica reglas de calidad DQ-01…09, guarda snapshot, emite `COMPLETED/PARTIAL/FAILED` y reporte de fallas | No |
+| **Thanatos** | Calcula semáforos (Schedule, Cost, Resources, Scope, Overall), compara **calculado vs declarado** por el PM, KPIs 6–19, roll-up Programa/Portafolio sin promediar colores | Solo narrativa, con verificación de cifras |
+| **Zeus** | 1 mensaje por destinatario/canal/día, idempotente, reintentos, dry-run | No |
+
+Plan completo de implementación: [`docs/plan/`](docs/plan/00_README_Indice.md).
+
+## Inicio rápido (local, 2 minutos)
+
+```bash
+python -m venv .venv && .venv\Scripts\activate          # Windows  (Linux/Mac: source .venv/bin/activate)
+pip install -r requirements-dev.txt
+python scripts/seed_demo_db.py                           # BD demo con DATOS SINTÉTICOS
+python main.py --dry-run                                 # corre los 3 agentes sin enviar nada
+python -m pytest -q                                      # 22 pruebas
+```
+
+Salida en `runs/<fecha>/`: `cronos.json`, `thanatos.json`, `zeus.json`, `outbox/` (mensajes renderizados), `failure_report.md`, `run.log`.
+
+Opciones: `--scope program:PRG001,project:PRJ0004` · `--as-of 2026-10-19` · `--send` · `--agents thanatos,zeus` (reprocesa con el snapshot de Cronos).
+
+## Ejecutar desde GitHub
+
+Dos workflows en *Actions*:
+
+| Workflow | Disparo | Qué hace |
+|---|---|---|
+| `CI (pruebas)` | cada push / PR | pytest + corrida de humo |
+| `SR diario` | lunes–viernes 07:00 CDMX y manual (*Run workflow*) | Corre los 3 agentes; publica `runs/` como artefacto y el reporte de fallas en el resumen |
+
+**Sin configurar nada**, `SR diario` corre con la BD demo en dry-run. Para hacerlo real, en *Settings → Secrets and variables → Actions*:
+
+| Secret | Uso |
+|---|---|
+| `DB_URL` | Cadena SQLAlchemy de la réplica (usuario **solo lectura**) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Correo |
+| `TELEGRAM_BOT_TOKEN` | Bot creado con @BotFather |
+| `RECIPIENTS_YAML` | Contenido de `config/recipients.yaml` con los `chat_id` reales |
+| `ADMIN_EMAIL`, `ADMIN_TELEGRAM_CHAT_ID` | Destino del reporte de fallas |
+| `ANTHROPIC_API_KEY` | Opcional: narrativa con LLM |
+| `REDIRECT_ALL_TO`, `REDIRECT_TELEGRAM_CHAT_ID` | Pruebas: manda todo a tu buzón/chat |
+
+| Variable | Uso |
+|---|---|
+| `DRY_RUN` | `false` para que la corrida programada envíe (default `true`) |
+| `SCOPE` | Alcance por defecto |
+| `RUNNER_LABEL` | `self-hosted` si la BD es local (ver abajo) |
+
+> **Importante — BD local:** los runners de GitHub corren en la nube y **no alcanzan una BD en tu equipo o LAN**. Si la réplica es local, registra un *self-hosted runner* en ese equipo (*Settings → Actions → Runners → New self-hosted runner*) y define `RUNNER_LABEL=self-hosted`. Alternativa: exponer la réplica con acceso restringido por IP.
+
+### Telegram: alta de destinatarios
+Un bot no puede escribir a quien no le ha hablado. Cada PM/PgM/PfM abre el bot y envía `/start`; luego:
+```bash
+TELEGRAM_BOT_TOKEN=xxx python scripts/telegram_chat_ids.py
+```
+y se agrega su `chat_id` en `RECIPIENTS_YAML`.
+
+## Adaptar a la réplica real
+Solo se editan archivos de `config/`:
+
+| Archivo | Contenido |
+|---|---|
+| `schema_map.yaml` | Mapeo lógico → físico de tablas/columnas (SUPUESTO: nombres OOB) y catálogos de estados |
+| `thresholds.yaml` | Umbrales Verde/Amarillo/Rojo (SUPUESTO, validar con PMO) |
+| `settings.yaml` | Alcance, antigüedad máxima del SR, LLM, canales |
+
+## Estructura
+```
+config/            settings, umbrales, mapeo de esquema, destinatarios
+src/spm_sr/core    orquestador, estado compartido, config, logging, reporte de fallas
+src/spm_sr/contracts  contratos C1/C2/C3 (Pydantic)
+src/spm_sr/cronos  M1 lector + reglas DQ
+src/spm_sr/thanatos M2 KPIs, control, roll-up, narrativa
+src/spm_sr/zeus    M3 render, envío, idempotencia
+scripts/           BD demo sintética, utilitario de chat_id
+tests/             unitarias, contrato, integración, caos
+docs/plan/         plan de implementación modular
+```
+
+## Limitaciones conocidas
+- Avance esperado **lineal**: subestima proyectos con curva S.
+- Umbrales y mapeo OOB son **supuestos** hasta validar con la réplica y la PMO.
+- La regla de Scope "cambio aprobado sin re-línea base" no es calculable con campos OOB.
+- Fase 2 pendiente: dashboard web (M4) y bot de consulta bajo demanda (M5).

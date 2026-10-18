@@ -1,0 +1,88 @@
+# Mapeo lógico -> físico de la réplica de ServiceNow SPM.
+# SUPUESTO: nombres Out-Of-the-Box. Ajustar SOLO este archivo si la réplica difiere.
+core:
+  project:
+    table: pm_project
+    required: [id, number, percent_complete, planned_start, planned_end, project_manager]
+    columns:
+      id: sys_id
+      number: number
+      name: short_description
+      state: state
+      percent_complete: percent_complete
+      planned_start: start_date
+      planned_end: end_date
+      actual_start: work_start
+      actual_end: work_end
+      planned_cost: cost
+      actual_cost: work_cost
+      planned_effort: effort
+      actual_effort: work_effort
+      project_manager: project_manager
+      program: primary_program
+      portfolio: primary_portfolio
+  status_report:
+    table: project_status
+    required: [project, as_on]
+    columns:
+      id: sys_id
+      project: project
+      as_on: as_on
+      overall: overall_health
+      schedule: schedule
+      cost: cost
+      resources: resources
+      scope: scope
+      comments: comments
+
+hierarchy:
+  program:
+    table: pm_program
+    required: [id]
+    columns: {id: sys_id, number: number, name: name, manager: program_manager, portfolio: primary_portfolio}
+  portfolio:
+    table: pm_portfolio
+    required: [id]
+    columns: {id: sys_id, number: number, name: name, manager: portfolio_manager}
+  user:
+    table: sys_user
+    required: [id]
+    columns: {id: sys_id, name: name, email: email}
+
+auxiliary:
+  milestones:
+    table: pm_project_task
+    project_fk: project
+    filter: {column: milestone, values: [1, "1", "true", true]}
+    columns: {id: sys_id, project: top_task, name: short_description, state: state, due: end_date, done_on: work_end, milestone: milestone}
+  risks:
+    table: risk
+    project_fk: project
+    columns: {id: sys_id, project: task, name: short_description, state: state, probability: probability, impact: impact, owner: owner, due: due_date}
+  issues:
+    table: issue
+    project_fk: project
+    columns: {id: sys_id, project: parent, name: short_description, state: state, priority: priority, owner: assigned_to}
+  decisions:
+    table: dmn_decision
+    project_fk: project
+    columns: {id: sys_id, project: task, name: short_description, state: state, created: sys_created_on}
+  actions:
+    table: project_action
+    project_fk: project
+    columns: {id: sys_id, project: task, name: short_description, state: state, approval: approval, due: due_date}
+  change_requests:
+    table: project_change_request
+    project_fk: project
+    columns: {id: sys_id, project: parent, name: short_description, state: state, created: sys_created_on}
+  resources:
+    table: resource_allocation
+    project_fk: project
+    columns: {id: sys_id, project: task, allocated_hours: allocated_hours, actual_hours: actual_hours}
+
+states:
+  closed_project: [closed, closed_complete, closed_incomplete, closed_skipped, cancelled]
+  closed: [closed, closed_complete, closed_incomplete, closed_skipped, cancelled, complete, completed, resolved, approved, rejected]
+  pending_change: [requested, pending, draft, open, in_review, new]
+  pending_approval: [requested, pending, not_yet_requested]
+  high_values: [high, alta, "1", 1, critical, "critical"]

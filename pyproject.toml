@@ -1,0 +1,9 @@
+[project]
+name = "spm-sr-agents"
+version = "0.1.0"
+description = "Sistema multi-agente (Cronos, Thanatos, Zeus) para Status Reports de ServiceNow SPM"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]

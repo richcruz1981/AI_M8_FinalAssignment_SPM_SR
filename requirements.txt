@@ -1,0 +1,10 @@
+SQLAlchemy>=2.0,<3
+pydantic>=2.6,<3
+PyYAML>=6.0
+requests>=2.31
+python-dotenv>=1.0
+anthropic>=0.40
+# Drivers de BD (instala el de tu motor):
+psycopg2-binary>=2.9   # PostgreSQL
+PyMySQL>=1.1           # MySQL / MariaDB
+# pyodbc>=5.0          # SQL Server (requiere ODBC Driver en el equipo/runner)

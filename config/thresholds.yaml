@@ -1,0 +1,18 @@
+# Umbrales de semáforo — SUPUESTO (el estándar SR define campos, no umbrales). Validar con la PMO.
+schedule:
+  yellow_gap_pp: -5      # brecha avance real - esperado (puntos porcentuales)
+  red_gap_pp: -15
+cost:
+  green_cpi: 0.95
+  yellow_cpi: 0.85
+  max_consumption: 1.0   # costo real / costo planeado
+resources:
+  green_low: 0.90
+  green_high: 1.10
+  yellow_low: 0.80
+  yellow_high: 1.25
+scope:
+  yellow_pending: 1      # cambios pendientes
+  red_pending: 3
+control:
+  cr_pending_days: 14

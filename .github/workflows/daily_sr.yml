@@ -1,0 +1,106 @@
+name: SR diario (Cronos → Thanatos → Zeus)
+
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"   # 07:00 America/Mexico_City (UTC-6), lunes a viernes
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "all | project:PRJ0001,program:PRG001,portfolio:PFL001"
+        default: "all"
+      dry_run:
+        description: "true = no envía (deja mensajes en el artefacto)"
+        type: choice
+        options: ["true", "false"]
+        default: "true"
+      as_of:
+        description: "Fecha de corte YYYY-MM-DD (vacío = hoy)"
+        default: ""
+
+concurrency:
+  group: sr-daily
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sr:
+    # Runner hospedado por GitHub NO alcanza una BD local/LAN. Para la réplica local, registra un
+    # self-hosted runner en ese equipo y define la variable de repo RUNNER_LABEL=self-hosted.
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 20
+    env:
+      TZ: America/Mexico_City
+      DB_URL: ${{ secrets.DB_URL }}
+      SCOPE: ${{ inputs.scope || vars.SCOPE || 'all' }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.DRY_RUN || 'true' }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      SMTP_FROM: ${{ secrets.SMTP_FROM }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID }}
+      REDIRECT_ALL_TO: ${{ secrets.REDIRECT_ALL_TO }}
+      REDIRECT_TELEGRAM_CHAT_ID: ${{ secrets.REDIRECT_TELEGRAM_CHAT_ID }}
+      RECIPIENTS_YAML: ${{ secrets.RECIPIENTS_YAML }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: BD demo sintética (solo si no hay secret DB_URL)
+        if: env.DB_URL == ''
+        run: python scripts/seed_demo_db.py
+
+      - name: Destinatarios desde secret RECIPIENTS_YAML
+        if: env.RECIPIENTS_YAML != ''
+        shell: bash
+        run: |
+          printf '%s' "$RECIPIENTS_YAML" > config/recipients.local.yaml
+          echo "RECIPIENTS_FILE=config/recipients.local.yaml" >> "$GITHUB_ENV"
+
+      - name: Restaurar bitácora de envíos (idempotencia entre corridas)
+        uses: actions/cache/restore@v4
+        with:
+          path: runs/ledger.json
+          key: sr-ledger-${{ github.run_id }}
+          restore-keys: sr-ledger-
+
+      - name: Ejecutar agentes
+        shell: bash
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.as_of }}" ]; then ARGS="--as-of ${{ inputs.as_of }}"; fi
+          python main.py $ARGS
+
+      - name: Guardar bitácora de envíos
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: runs/ledger.json
+          key: sr-ledger-${{ github.run_id }}
+
+      - name: Resumen de la corrida
+        if: always()
+        shell: bash
+        run: |
+          f=$(ls runs/*/failure_report.md 2>/dev/null | tail -1)
+          if [ -n "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Publicar snapshots, outbox y reporte de fallas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sr-run-${{ github.run_number }}
+          path: runs/
+          retention-days: 30

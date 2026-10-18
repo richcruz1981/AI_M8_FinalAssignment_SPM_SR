@@ -1,0 +1,13 @@
+# Tabla notif_recipient (no existe en OOB). Mapeo email -> canales y chat_id de Telegram.
+# El chat_id se obtiene cuando el usuario envía /start al bot: python scripts/telegram_chat_ids.py
+# En GitHub Actions este archivo se reemplaza con el secret RECIPIENTS_YAML (no subir chat_ids reales).
+# Usuario no listado = solo correo.
+recipients:
+  - email: ana.pm@example.com
+    telegram_chat_id: ""
+    channels: [email, telegram]
+    active: true
+  - email: sofia.pgm@example.com
+    telegram_chat_id: ""
+    channels: [email, telegram]
+    active: true
