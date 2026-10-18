@@ -23,6 +23,15 @@ sys.path.insert(0, str(ROOT / "src"))
 from spm_sr.thanatos import kpi_rules as K  # noqa: E402
 
 CHUNK = "-- @@CHUNK"
+REGIONS = ["Norte", "Noreste", "Centro", "Bajío", "Occidente", "Sureste"]
+
+
+def region_for(number: str) -> str | None:
+    """Región determinista por número de proyecto (campo personalizado u_region). ~6 % queda sin región (DQ-10)."""
+    import hashlib
+
+    h = int(hashlib.sha256(number.encode()).hexdigest(), 16)
+    return None if h % 100 < 6 else REGIONS[(h // 100) % len(REGIONS)]
 TABLES = ["sys_user", "pm_portfolio", "pm_program", "pm_project", "project_status", "pm_project_task", "risk",
           "issue", "dmn_decision", "project_action", "project_change_request", "resource_allocation"]
 
@@ -34,7 +43,8 @@ CREATE TABLE pm_program (sys_id varchar(32) PRIMARY KEY, number varchar(20), nam
 CREATE TABLE pm_project (sys_id varchar(32) PRIMARY KEY, number varchar(20), short_description varchar(160), state varchar(30),
   percent_complete numeric(6,2), start_date date, end_date date, work_start date, work_end date,
   cost numeric(14,2), work_cost numeric(14,2), effort numeric(10,1), work_effort numeric(10,1),
-  project_manager varchar(32), primary_program varchar(32), primary_portfolio varchar(32), sys_created_on timestamp);
+  project_manager varchar(32), primary_program varchar(32), primary_portfolio varchar(32), sys_created_on timestamp,
+  u_region varchar(30));
 CREATE TABLE project_status (sys_id varchar(32) PRIMARY KEY, project varchar(32), as_on date, overall_health varchar(10),
   schedule varchar(10), cost varchar(10), resources varchar(10), scope varchar(10), comments text);
 CREATE TABLE pm_project_task (sys_id varchar(32) PRIMARY KEY, top_task varchar(32), short_description varchar(160),
@@ -200,7 +210,8 @@ class Gen:
                 "work_start": work_start, "work_end": work_end, "cost": cost, "work_cost": work_cost,
                 "effort": effort, "work_effort": work_effort, "project_manager": pm["sys_id"],
                 "primary_program": pg["sys_id"], "primary_portfolio": pg["primary_portfolio"],
-                "sys_created_on": self.ts(-(self.a - start).days - 15), "_kind": kind})
+                "sys_created_on": self.ts(-(self.a - start).days - 15),
+                "u_region": region_for(f"PRJ{1001000 + i + 1}"), "_kind": kind})
         self.active_proj = [p for p in self.rows["pm_project"] if p["state"] not in ("closed_complete", "cancelled")]
 
     def _pick(self, weight_bad=0.6):

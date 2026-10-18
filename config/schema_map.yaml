@@ -21,6 +21,7 @@ core:
       project_manager: project_manager
       program: primary_program
       portfolio: primary_portfolio
+      region: u_region          # campo PERSONALIZADO (no OOB): región del proyecto
   status_report:
     table: project_status
     required: [project, as_on]

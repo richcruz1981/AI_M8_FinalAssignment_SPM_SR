@@ -13,6 +13,8 @@ Scheduler ─► Cronos (lector) ──C1──► Thanatos (analista) ──C2�
 | **Thanatos** | Calcula semáforos (Schedule, Cost, Resources, Scope, Overall), compara **calculado vs declarado** por el PM, KPIs 6–19, roll-up Programa/Portafolio sin promediar colores | Solo narrativa, con verificación de cifras |
 | **Zeus** | 1 mensaje de Telegram por destinatario/día (se divide si excede 4,096 caracteres), idempotente, reintentos, ritmo ~1 msg/s, dry-run | No |
 
+**Bot bajo demanda — Radamantis (ejecutor):** recibe peticiones en Telegram (`/total`, `/categorias`, `/regiones`, `/programas`, `/portafolios`, `/calidad` o el menú de botones) y las resuelve con Cronos → Thanatos → Zeus. Ver [`docs/plan/11`](docs/plan/11_M5_Agente_Radamantis_Bot.md). Se publica en el servidor del curso con el workflow *Publicar bot Radamantis en hatchvps*.
+
 Plan completo de implementación: [`docs/plan/`](docs/plan/00_README_Indice.md).
 
 ## Inicio rápido (local, 2 minutos)

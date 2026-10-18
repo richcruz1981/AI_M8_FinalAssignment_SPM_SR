@@ -106,6 +106,35 @@ class Zeus:
         chat = redirect or cfg.get("telegram_chat_id") or None
         return (str(chat) if chat else None), True, bool(redirect)
 
+    # ------------------------------------------------------------------ respuesta bajo demanda (bot)
+    def reply(self, chat_id: str, messages: list[str], reply_markup: dict | None = None) -> list[dict[str, Any]]:
+        """Responde en el chat que hizo la petición (usado por Radamantis). Sin ledger: cada petición se responde."""
+        out = []
+        for i, part in enumerate(messages):
+            markup = reply_markup if i == len(messages) - 1 else None
+            last = None
+            for attempt, wait in enumerate(self.backoff, start=1):
+                try:
+                    wait_pace = self.interval - (time.monotonic() - self._last_send)
+                    if wait_pace > 0 and self._last_send:
+                        self.sleep(wait_pace)
+                    mid = self.telegram.send(chat_id, part, reply_markup=markup)
+                    self._last_send = time.monotonic()
+                    out.append({"recipient": str(chat_id), "channel": CHANNEL, "status": "SENT", "attempt": attempt,
+                                "message_id": mid, "ts": now_iso()})
+                    last = None
+                    break
+                except SendError as e:
+                    last = str(e)
+                    if attempt < len(self.backoff):
+                        self.sleep(wait)
+            if last:
+                out.append({"recipient": str(chat_id), "channel": CHANNEL, "status": "FAILED",
+                            "attempt": len(self.backoff), "reason": last, "ts": now_iso()})
+                log.error("Zeus no pudo responder a %s: %s", chat_id, last)
+                break
+        return out
+
     # ------------------------------------------------------------------ modos
     def _send_failure(self, state: RunState, ledger: dict, failure_md: str) -> list[dict]:
         body = render.failure_text(failure_md)[:3800].replace("&", "&amp;").replace("<", "&lt;")

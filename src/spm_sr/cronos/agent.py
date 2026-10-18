@@ -130,7 +130,7 @@ class Cronos:
     def run(self, state: RunState) -> dict[str, Any]:
         started = now_iso()
         out: dict[str, Any] = {"projects": [], "status_reports": {}, "hierarchy": {}, "aux": {},
-                               "data_quality": [], "source_availability": {}}
+                               "data_quality": [], "source_availability": {}, "inventory": []}
         engine = self._connect(state)
         if engine is None:
             out["signal"] = make_signal(Signal.FAILED, started)
@@ -158,7 +158,8 @@ class Cronos:
         out["hierarchy"] = hier
         closed = {norm(s) for s in self.map.get("states", {}).get("closed_project", [])}
 
-        projects = []
+        region_ok = "region" not in avail.get("project", {}).get("missing_columns", ["region"])
+        projects, inventory = [], []
         for r in raw_projects:
             p = {k: (str(v) if k in ("id", "project_manager", "program", "portfolio") and v is not None else v)
                  for k, v in r.items()}
@@ -167,9 +168,13 @@ class Cronos:
             for f in NUM_FIELDS:
                 p[f] = to_float(p.get(f))
             p["number"] = str(p.get("number") or p["id"])
-            if norm(p.get("state")) in closed:
-                continue
+            p["_region_available"] = region_ok
             if not self._in_scope(p, state.scope, hier.get("program", {}), hier.get("portfolio", {})):
+                continue
+            # Inventario: TODOS los proyectos del alcance (incluye cerrados y los que DQ excluya) para conteos
+            inventory.append({k: p.get(k) for k in ("id", "number", "name", "state", "region", "program",
+                                                    "portfolio", "project_manager")})
+            if norm(p.get("state")) in closed:
                 continue
             projects.append(p)
         records_in = len(projects)
@@ -211,6 +216,8 @@ class Cronos:
             aux_out[key] = dict(grouped)
 
         out["projects"] = valid
+        out["inventory"] = inventory
+        out["region_available"] = region_ok
         out["status_reports"] = {pid: sr for pid, sr in latest.items() if pid in valid_ids}
         out["aux"] = aux_out
         out["data_quality"] = findings

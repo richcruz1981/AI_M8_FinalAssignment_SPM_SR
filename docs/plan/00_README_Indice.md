@@ -28,6 +28,7 @@ El sistema se implementa en **6 módulos independientes** (M0–M5) con contrato
 | `08_Pruebas_y_Criterios_de_Aceptacion.md` | Transversal | Estrategia de pruebas y datos de prueba |
 | `09_Roadmap_e_Implementacion.md` | — | Fases, entregables, piloto |
 | `10_Riesgos_Brechas_y_Pendientes.md` | — | Riesgos, fase 2 (M4 Dashboard, M5 Bot) y qué falta verificar |
+| `11_M5_Agente_Radamantis_Bot.md` | M5 | Agente Radamantis y bot de Telegram bajo demanda (implementado) |
 
 ## Mapa de módulos
 | Módulo | Nombre | Depende de | Puede desarrollarse en paralelo con |

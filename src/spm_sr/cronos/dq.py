@@ -1,4 +1,4 @@
-"""Reglas de calidad mínima DQ-01..DQ-09 (docs/plan/04)."""
+"""Reglas de calidad mínima DQ-01..DQ-10 (docs/plan/04). DQ-10 aplica solo si existe el campo personalizado u_region."""
 from __future__ import annotations
 
 import datetime as dt
@@ -76,6 +76,8 @@ def run_dq(projects: list[dict], latest_sr: dict[str, dict], users: dict[str, di
         if not p.get("planned_effort"):
             findings.append(_f("DQ-06", "Media", p, "planned_effort", p.get("planned_effort"), False,
                                "Esfuerzo planeado nulo o 0"))
+        if p.get("_region_available") and not p.get("region"):
+            findings.append(_f("DQ-10", "Baja", p, "region", None, False, "Proyecto sin región (u_region)"))
         pm = users.get(p.get("project_manager") or "")
         if not p.get("project_manager") or pm is None or not pm.get("email"):
             findings.append(_f("DQ-07", "Alta", p, "project_manager", p.get("project_manager"), False,

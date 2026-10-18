@@ -1,0 +1,47 @@
+name: BD · migración u_region (no destructiva)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TUNNEL_SSH_TARGET: ${{ vars.TUNNEL_SSH_TARGET }}
+      TUNNEL_REMOTE_PORT: ${{ vars.TUNNEL_REMOTE_PORT || '56432' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Abrir túnel SSH
+        shell: bash
+        env:
+          HATCH_KEY: ${{ secrets.HATCH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$HATCH_KEY" | tr -d '\r' > ~/.ssh/hatch_key && chmod 600 ~/.ssh/hatch_key
+          ssh -fN -o StrictHostKeyChecking=accept-new -o ExitOnForwardFailure=yes -i ~/.ssh/hatch_key \
+              -L "15432:127.0.0.1:${TUNNEL_REMOTE_PORT}" "$TUNNEL_SSH_TARGET"
+          for i in $(seq 1 20); do (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null && break; sleep 1; done
+          URL=$(python -c "import os; from sqlalchemy.engine import make_url; print(make_url(os.environ['DATABASE_URL']).set(host='127.0.0.1', port=15432).render_as_string(hide_password=False))")
+          echo "::add-mask::$URL"
+          echo "DATABASE_URL_LOCAL=$URL" >> "$GITHUB_ENV"
+          echo "DB_TARGET=local" >> "$GITHUB_ENV"
+      - name: Migrar
+        run: |
+          python scripts/migrate_add_region.py | tee out.txt
+          { echo '```'; cat out.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Cerrar túnel y borrar llave
+        if: always()
+        run: |
+          pkill -f "ssh -fN" 2>/dev/null || true
+          rm -f ~/.ssh/hatch_key

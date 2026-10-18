@@ -1,0 +1,99 @@
+name: Publicar bot Radamantis en hatchvps
+
+# Replica deploy.sh del kit: sube por SFTP solo lo que el bot necesita. El servidor ejecuta bot.py solo.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-bot
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TUNNEL_SSH_TARGET: ${{ vars.TUNNEL_SSH_TARGET }}
+      SITE: https://hatchvps.com/iaang01/edgarcruz
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Armar paquete (sin main.py, scripts, pruebas ni docs)
+        shell: bash
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BOT_ALLOWED_CHAT_IDS: ${{ vars.BOT_ALLOWED_CHAT_IDS }}
+        run: |
+          set -euo pipefail
+          mkdir -p pkg/src pkg/config
+          cp bot.py pkg/
+          rsync -a --exclude '__pycache__' src/spm_sr pkg/src/
+          cp config/settings.yaml config/schema_map.yaml config/thresholds.yaml config/recipients.yaml pkg/config/
+          printf '%s\n' "# Extra para el bot Radamantis (el resto ya viene en el servidor)" "PyYAML" > pkg/requirements.txt
+          {
+            echo "TELEGRAM_TOKEN=$TELEGRAM_TOKEN"
+            echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID"
+            echo "DATABASE_URL=$DATABASE_URL"
+            echo "DB_TARGET=server"
+            echo "LLM_ENABLED=false"
+            echo "BOT_ALLOWED_CHAT_IDS=${BOT_ALLOWED_CHAT_IDS}"
+            echo "BOT_FILE_LOGS=0"
+          } > pkg/.env
+          find pkg -type f | sort | sed 's#^pkg/##' | grep -v '^\.env$'
+
+      - name: Preparar llave
+        shell: bash
+        env:
+          HATCH_KEY: ${{ secrets.HATCH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$HATCH_KEY" | tr -d '\r' > ~/.ssh/hatch_key && chmod 600 ~/.ssh/hatch_key
+
+      - name: Seguridad — probar que un .env NO es público (con un .env falso, sin secretos)
+        shell: bash
+        run: |
+          echo "PROBE=sin_secretos" > probe.env
+          echo 'put probe.env .env' | sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b - "$TUNNEL_SSH_TARGET" > /dev/null
+          sleep 3
+          code=$(curl -s -o body.txt -w "%{http_code}" "$SITE/.env")
+          echo "GET $SITE/.env -> HTTP $code"
+          if [ "$code" = "200" ] && grep -q PROBE body.txt; then
+            echo "rm .env" | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" || true
+            echo "::error::El servidor publica el .env: no se suben credenciales. Despliegue cancelado."
+            exit 1
+          fi
+
+      - name: Subir por SFTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd pkg
+          : > ../batch.txt
+          find . -mindepth 1 -type d | sed 's#^\./##' | while read -r d; do echo "-mkdir \"$d\""; done >> ../batch.txt
+          find . -type f | sed 's#^\./##' | while read -r f; do echo "put \"$f\" \"$f\""; done >> ../batch.txt
+          sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b ../batch.txt "$TUNNEL_SSH_TARGET" > /dev/null
+          echo "Subidos $(grep -c '^put' ../batch.txt) archivos"
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$SITE/.env"); echo "Verificación final GET /.env -> HTTP $code"
+
+      - name: Registro del servidor (_ejecucion.log)
+        if: always()
+        shell: bash
+        run: |
+          sleep 45
+          set +e
+          printf 'ls -la\nget _ejecucion.log ejecucion.log\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" > ls.txt 2>&1
+          {
+            echo '### Archivos en el servidor'; echo '```'; cat ls.txt; echo '```'
+            echo '### _ejecucion.log (últimas 80 líneas)'; echo '```'
+            if [ -f ejecucion.log ]; then tail -80 ejecucion.log | sed -E 's/(postgres(ql)?:\/\/[^:]+:)[^@]+@/\1***@/g; s/bot[0-9]{6,}:[A-Za-z0-9_-]+/bot***/g'; else echo "(no existe aún)"; fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Borrar llave
+        if: always()
+        run: rm -f ~/.ssh/hatch_key
