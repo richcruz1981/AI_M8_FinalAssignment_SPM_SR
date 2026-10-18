@@ -20,6 +20,8 @@ ACTIONS = {
     "E-CALC-00": "Thanatos no recibió datos válidos de Cronos.",
     "E-CALC-01": "Revisar el proyecto indicado; el resto de la corrida continuó.",
     "E-LLM-01": "Se usó la plantilla determinista; revisar ANTHROPIC_API_KEY / modelo.",
+    "E-LLM-02": "El LLM citó cifras que no están en los datos; se usó la plantilla determinista (control funcionando).",
+    "E-LLM-03": "El LLM devolvió texto vacío; se usó la plantilla determinista.",
     "E-SEND-01": "Revisar credenciales SMTP/Telegram y conectividad.",
     "E-SEND-02": "Registrar email o chat_id del destinatario (config/recipients.yaml, /start en el bot).",
     "E-SEND-03": "Configurar secrets SMTP_* o TELEGRAM_BOT_TOKEN.",

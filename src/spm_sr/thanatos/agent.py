@@ -133,7 +133,8 @@ class Thanatos:
         for ru in rollups:
             ru["narrative"] = narrator.narrate(ru, template_rollup(ru))
         for f in narrator.failures:
-            state.add_error("E-LLM-01", self.name, f, severity="Baja")
+            code = f.split()[0].rstrip(":") if f.startswith("E-LLM-") else "E-LLM-01"
+            state.add_error(code, self.name, f, severity="Baja")
 
         dq = c.get("data_quality", [])
         quality = {"findings": len(dq), "excluded": sum(1 for f in dq if f["excluded"]),
