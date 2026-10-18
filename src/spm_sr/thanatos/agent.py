@@ -127,11 +127,14 @@ class Thanatos:
             rollups.append(rollup("Portafolio", {**ent, "id": pid}, reps))
 
         narrator = Narrator(self.settings)
+        # Primero los roll-ups (su narrativa es la que se envía por Telegram a PgM/PfM): portafolios y luego
+        # programas, de mayor a menor número de proyectos; el presupuesto de llamadas restante va a proyectos.
+        order = sorted(rollups, key=lambda ru: (ru["level"] != "Portafolio", -(ru.get("n_projects") or 0)))
+        for ru in order:
+            ru["narrative"] = narrator.narrate(ru, template_rollup(ru))
         for r in reports:
             facts = {k: r[k] for k in ("number", "name", "health", "performance", "control", "alerts", "sr_stale")}
             r["narrative"] = narrator.narrate(facts, template_project(r))
-        for ru in rollups:
-            ru["narrative"] = narrator.narrate(ru, template_rollup(ru))
         for f in narrator.failures:
             code = f.split()[0].rstrip(":") if f.startswith("E-LLM-") else "E-LLM-01"
             state.add_error(code, self.name, f, severity="Baja")

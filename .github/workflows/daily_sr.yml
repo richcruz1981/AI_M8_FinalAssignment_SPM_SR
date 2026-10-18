@@ -148,10 +148,12 @@ jobs:
               t = json.load(open(d + "thanatos.json")) if os.path.exists(d + "thanatos.json") else {}
               nar = [x.get("narrative", {}) for x in t.get("project_reports", []) + t.get("rollups", [])]
               llm = [n for n in nar if n.get("source") == "llm"]
-              sample = (llm[0]["text"] if llm else "").replace("\n", " ")[:220]
+              ru = [x.get("narrative", {}) for x in t.get("rollups", [])]
+              ru_llm = [n for n in ru if n.get("source") == "llm"]
+              sample = (ru_llm[0]["text"] if ru_llm else "").replace("\n", " ")[:220]
               print(f"::notice title=SR {os.environ.get('SR_SLOT')}::BD={os.environ.get('DB_SOURCE')} · dry_run={os.environ.get('DRY_RUN')} · "
                     f"Cronos={c.get('status')} ({c.get('records_in')} proyectos) · entregas {st} · "
-                    f"IA {len(llm)}/{len(nar)} narrativas · ejemplo IA: {sample}")
+                    f"IA {len(llm)}/{len(nar)} narrativas (roll-ups enviados por Telegram: {len(ru_llm)}/{len(ru)}) · ejemplo: {sample}")
           PY
           f=$(ls runs/*/failure_report.md 2>/dev/null | tail -1)
           if [ -n "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi
