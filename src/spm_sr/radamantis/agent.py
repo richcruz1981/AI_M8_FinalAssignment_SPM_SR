@@ -14,6 +14,7 @@ import copy
 import datetime as dt
 import logging
 import re
+import threading
 import time
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
@@ -67,9 +68,14 @@ class Radamantis:
         self.clock = clock
         self.today = today or (lambda: dt.datetime.now(self.tz).date())
         self._cache: tuple[float, dict, dict | None, str] | None = None
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ datos (Cronos -> Thanatos)
     def _data(self) -> tuple[dict, dict | None, str, list]:
+        with self._lock:
+            return self._data_unlocked()
+
+    def _data_unlocked(self) -> tuple[dict, dict | None, str, list]:
         now = self.clock()
         if self._cache and now - self._cache[0] < self.ttl:
             return self._cache[1], self._cache[2], self._cache[3], []

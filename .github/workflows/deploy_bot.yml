@@ -1,6 +1,6 @@
 name: Publicar bot Radamantis en hatchvps
 
-# Replica deploy.sh del kit: sube por SFTP solo lo que el bot necesita. El servidor ejecuta bot.py solo.
+# Replica deploy.sh del kit: sube por SFTP solo lo necesario. El servidor mantiene vivo app.py, que arranca el bot.
 on:
   workflow_dispatch:
 
@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p pkg/config
-          cp bot.py pkg/
+          cp app.py pkg/   # único .py publicado: el servidor lo mantiene vivo y arranca el bot
           (cd src && zip -qr ../pkg/spm_sr.zip spm_sr -x '*__pycache__*')
           python -c "import zipfile; z=zipfile.ZipFile('pkg/spm_sr.zip'); print(len(z.namelist()), 'archivos en spm_sr.zip')"
           # El servidor no trae PyYAML: la configuración viaja también como JSON (config.py la lee si falta yaml)
@@ -81,6 +81,7 @@ jobs:
         run: |
           set +e
           {
+            echo '-rm "bot.py"'
             find src -type f -name '*.py' | sed 's#^#-rm "#; s#$#"#'
             find src -type d | sort -r | sed 's#^#-rmdir "#; s#$#"#'
           } > clean.txt
@@ -99,16 +100,17 @@ jobs:
           echo "Subidos $(grep -c '^put' ../batch.txt) archivos"
           code=$(curl -s -o /dev/null -w "%{http_code}" "$SITE/.env"); echo "Verificación final GET /.env -> HTTP $code"
 
-      - name: Verificar que el bot está escuchando (getUpdates debe dar 409 si bot.py está activo)
+      - name: Verificar que el bot está escuchando (getUpdates da 409 si el bot de app.py está activo)
         shell: bash
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         run: |
           sleep 45
-          for i in 1 2 3 4; do
+          curl -s -o /dev/null -w "App: HTTP %{http_code}\n" "$SITE/app/" | tee -a "$GITHUB_STEP_SUMMARY"
+          for i in 1 2 3 4 5 6; do
             code=$(curl -s -o r.json -w "%{http_code}" "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getUpdates?timeout=0&limit=1")
             echo "intento $i: HTTP $code"
-            [ "$code" = "409" ] && { echo "BOT_ACTIVO: otro proceso (bot.py en el servidor) está recibiendo mensajes" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
+            [ "$code" = "409" ] && { echo "BOT_ACTIVO: el bot en app.py (servidor) está recibiendo mensajes" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; }
             sleep 20
           done
           echo "BOT_NO_DETECTADO: nadie está haciendo polling con este token" | tee -a "$GITHUB_STEP_SUMMARY"
