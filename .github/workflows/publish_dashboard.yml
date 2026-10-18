@@ -109,8 +109,8 @@ jobs:
           ls assets | sort > ../../local.txt
           printf 'ls -1 dashboard/assets\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" 2>/dev/null | grep -v '^sftp>' | xargs -n1 basename 2>/dev/null | sort > ../../remote.txt || true
           {
-            comm -23 ../../remote.txt ../../local.txt | sed 's#.*#-rm "dashboard/assets/&"#'
-            printf 'ls -1 assets\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" 2>/dev/null | grep -v '^sftp>' | grep 'index-' | xargs -n1 basename 2>/dev/null | sed 's#.*#-rm "assets/&"#'
+            comm -23 ../../remote.txt ../../local.txt | sed 's#.*#-rm "dashboard/assets/&"#' || true
+            { printf 'ls -1 assets\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" 2>/dev/null | grep -v '^sftp>' | grep 'index-' | xargs -r -n1 basename | sed 's#.*#-rm "assets/&"#'; } || true
             echo '-rm "data/kpis.json"'
             echo '-rmdir "data"'
             echo '-rmdir "assets"'
