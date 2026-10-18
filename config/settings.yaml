@@ -15,6 +15,7 @@ llm:
   enabled: true                       # requiere env ANTHROPIC_API_KEY; sin llave usa plantilla
   model: "claude-sonnet-5-5"          # env: LLM_MODEL
   max_tokens: 400
+  thinking: "between_tools"           # desactiva el razonamiento extendido: evita respuestas vacías por max_tokens
   max_calls: 20
 
 notifications:

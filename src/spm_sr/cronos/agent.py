@@ -48,15 +48,16 @@ class Cronos:
                 engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
                 with engine.connect() as conn:
                     conn.execute(text("SELECT 1"))
-                log.info("Conexión a BD establecida (intento %s)", i + 1)
+                log.info("Conexión a BD establecida (intento %s) · origen %s · %s", i + 1,
+                         db.get("url_origin", "config"), engine.url.render_as_string(hide_password=True))
                 return engine
-            except (ArgumentError, NoSuchModuleError) as e:
+            except (ArgumentError, NoSuchModuleError, ImportError) as e:
                 state.add_error("E-CONN-03", self.name, f"URL de BD o driver inválido: {e}", blocking=True)
                 return None
             except OperationalError as e:
                 if any(h in str(e).lower() for h in AUTH_HINTS):
                     state.add_error("E-CONN-02", self.name, "Autenticación rechazada por la BD", blocking=True,
-                                    detail=str(e.orig)[:300])
+                                    detail=str(e.orig)[:300], origin=db.get("url_origin", "config"))
                     return None
                 last = e
             except Exception as e:  # noqa: BLE001 - se registra y se reintenta
@@ -66,7 +67,7 @@ class Cronos:
                 log.warning("Fallo de conexión (intento %s/%s). Reintento en %ss", i + 1, attempts, wait)
                 self.sleep(wait)
         state.add_error("E-CONN-01", self.name, f"No fue posible conectar tras {attempts} intentos", blocking=True,
-                        detail=str(last)[:300])
+                        detail=str(last)[:300], origin=db.get("url_origin", "config"))
         return None
 
     # ------------------------------------------------------------------ lectura genérica

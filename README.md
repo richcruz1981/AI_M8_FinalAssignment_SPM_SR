@@ -29,6 +29,17 @@ Salida en `runs/<fecha>/`: `cronos.json`, `thanatos.json`, `zeus.json`, `outbox/
 
 Opciones: `--scope program:PRG001,project:PRJ0004` · `--as-of 2026-10-19` · `--send` · `--agents thanatos,zeus` (reprocesa con el snapshot de Cronos).
 
+## Credenciales (repo público: nunca en el código)
+
+| Dónde | Cómo |
+|---|---|
+| Local | Archivo `.env` en la raíz (ignorado por git). Acepta **tal cual** el `.env` del kit del curso: `DATABASE_URL`, `DATABASE_URL_LOCAL`, `TELEGRAM_TOKEN`, `TELEGRAM_ID`, `ANTHROPIC_API_KEY`. Plantilla: `.env.example` |
+| GitHub Actions | *Settings → Secrets and variables → Actions* (tabla abajo) |
+
+- `DB_TARGET=auto` usa `DATABASE_URL` si el host `alumnos-pgbouncer` resuelve (app desplegada en el servidor del curso) y si no, `DATABASE_URL_LOCAL` (requiere `./tunel.sh` abierto en tu computadora).
+- Logs, reportes de fallas y artefactos **ocultan** claves, tokens y contraseñas (`***`).
+- El CI falla si algún archivo versionado contiene una llave de Anthropic, un token de Telegram o una URL de BD con contraseña.
+
 ## Ejecutar desde GitHub
 
 Dos workflows en *Actions*:
@@ -42,20 +53,26 @@ Dos workflows en *Actions*:
 
 | Secret | Uso |
 |---|---|
-| `DB_URL` | Cadena SQLAlchemy de la réplica (usuario **solo lectura**) |
+| `DATABASE_URL` | URL de la BD del curso (o `DB_URL` para otra réplica; tiene prioridad) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Correo |
-| `TELEGRAM_BOT_TOKEN` | Bot creado con @BotFather |
+| `TELEGRAM_TOKEN` | Token del bot (@BotFather) |
+| `TELEGRAM_ID` | Tu chat_id: recibe el reporte de fallas |
 | `RECIPIENTS_YAML` | Contenido de `config/recipients.yaml` con los `chat_id` reales |
-| `ADMIN_EMAIL`, `ADMIN_TELEGRAM_CHAT_ID` | Destino del reporte de fallas |
-| `ANTHROPIC_API_KEY` | Opcional: narrativa con LLM |
+| `ADMIN_EMAIL` | Correo para el reporte de fallas |
+| `ANTHROPIC_API_KEY` | Narrativa con LLM (sin ella: plantilla) |
 | `REDIRECT_ALL_TO`, `REDIRECT_TELEGRAM_CHAT_ID` | Pruebas: manda todo a tu buzón/chat |
 
 | Variable | Uso |
 |---|---|
+| `DB_SOURCE` | `demo` (default, BD sintética) o `real` (usa `DATABASE_URL`/`DB_URL`) |
+| `DB_TARGET` | `server` (default en Actions) / `local` / `auto` |
+| `LLM_ENABLED` | `false` para no consumir tokens de Anthropic en las corridas programadas |
 | `DRY_RUN` | `false` para que la corrida programada envíe (default `true`) |
 | `SCOPE` | Alcance por defecto |
 | `RUNNER_LABEL` | `self-hosted` si la BD es local (ver abajo) |
 
+> **BD del curso:** `alumnos-pgbouncer` solo es alcanzable desde el servidor del curso (hatchvps). Con `DB_SOURCE=real` en un runner de GitHub, Cronos falla con `E-CONN-01`. Opciones: desplegar el proceso en el servidor del curso (cron + `python main.py`) o un self-hosted runner allí.
+>
 > **Importante — BD local:** los runners de GitHub corren en la nube y **no alcanzan una BD en tu equipo o LAN**. Si la réplica es local, registra un *self-hosted runner* en ese equipo (*Settings → Actions → Runners → New self-hosted runner*) y define `RUNNER_LABEL=self-hosted`. Alternativa: exponer la réplica con acceso restringido por IP.
 
 ### Telegram: alta de destinatarios

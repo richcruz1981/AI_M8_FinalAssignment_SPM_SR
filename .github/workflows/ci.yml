@@ -18,6 +18,8 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements-dev.txt
+      - name: Bloquear credenciales en el repositorio (repo público)
+        run: python -m pytest -q tests/test_no_secrets.py
       - name: Pruebas unitarias, de contrato, integración y caos
         run: python -m pytest -q
       - name: Corrida de humo en dry-run con BD demo

@@ -42,8 +42,10 @@ class RunState:
 
     def add_error(self, code: str, agent: str, message: str, severity: str = "Alta",
                   blocking: bool = False, **context: Any) -> ErrorEvent:
-        ev = ErrorEvent(code=code, agent=agent, message=message, severity=severity,
-                        blocking=blocking, context=context)
+        from .config import redact
+
+        ev = ErrorEvent(code=code, agent=agent, message=redact(message), severity=severity, blocking=blocking,
+                        context={k: redact(v) if isinstance(v, str) else v for k, v in context.items()})
         self.errors.append(ev)
         return ev
 

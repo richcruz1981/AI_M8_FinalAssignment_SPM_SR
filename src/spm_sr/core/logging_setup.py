@@ -17,6 +17,15 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False)
 
 
+class RedactFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        from .config import redact
+
+        record.msg = redact(record.getMessage())
+        record.args = ()
+        return True
+
+
 def setup_logging(run_dir: Path | None = None, level: int = logging.INFO) -> logging.Logger:
     log = logging.getLogger("spm_sr")
     log.setLevel(level)
@@ -31,5 +40,7 @@ def setup_logging(run_dir: Path | None = None, level: int = logging.INFO) -> log
         fh = logging.FileHandler(run_dir / "run.log", encoding="utf-8")
         fh.setFormatter(JsonFormatter())
         log.addHandler(fh)
+    for h in log.handlers:
+        h.addFilter(RedactFilter())
     log.propagate = False
     return log

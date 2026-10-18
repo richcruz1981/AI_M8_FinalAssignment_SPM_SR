@@ -1,6 +1,7 @@
 """Narrativa ejecutiva. Plantilla determinista siempre disponible; LLM opcional con verificación de cifras."""
 from __future__ import annotations
 
+import datetime as dt
 import json
 import logging
 import re
@@ -74,6 +75,8 @@ def template_rollup(ru: dict[str, Any]) -> str:
 def _allowed_numbers(obj: Any, acc: set[float]) -> set[float]:
     if isinstance(obj, bool):
         return acc
+    if isinstance(obj, (dt.date, dt.datetime)):
+        obj = obj.isoformat()
     if isinstance(obj, (int, float)):
         for v in (obj, round(obj), round(obj, 1), round(obj, 2), abs(obj)):
             acc.add(float(v))
@@ -112,6 +115,7 @@ class Narrator:
         self.enabled = bool(cfg.get("enabled")) and bool(secret("ANTHROPIC_API_KEY"))
         self.model = cfg.get("model")
         self.max_tokens = int(cfg.get("max_tokens", 400))
+        self.thinking = cfg.get("thinking") or None  # "between_tools" = sin razonamiento extendido (más barato)
         self.max_calls = int(cfg.get("max_calls", 20))
         self.calls = 0
         self.failures: list[str] = []
@@ -129,15 +133,26 @@ class Narrator:
         if not self.enabled or self.calls >= self.max_calls:
             return {"text": fallback, "source": "plantilla"}
         self.calls += 1
+        req = {"model": self.model, "max_tokens": self.max_tokens, "system": SYSTEM_PROMPT,
+               "messages": [{"role": "user", "content": json.dumps(facts, ensure_ascii=False, default=str)}]}
+        if self.thinking:
+            req["thinking"] = {"type": self.thinking}
         try:
-            msg = self._client.messages.create(
-                model=self.model, max_tokens=self.max_tokens, system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": json.dumps(facts, ensure_ascii=False, default=str)}],
-            )
+            try:
+                msg = self._client.messages.create(**req)
+            except Exception as e:  # noqa: BLE001 - modelo sin ese modo: reintento sin él y con más margen
+                if "thinking" not in str(e).lower() or "thinking" not in req:
+                    raise
+                req.pop("thinking")
+                req["max_tokens"] = self.max_tokens * 4
+                msg = self._client.messages.create(**req)
             text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text").strip()
         except Exception as e:  # noqa: BLE001
             self.failures.append(f"E-LLM-01: {str(e)[:200]}")
             return {"text": fallback, "source": "plantilla", "llm_error": "E-LLM-01"}
+        if not text:
+            self.failures.append(f"E-LLM-03 respuesta vacía (stop_reason={getattr(msg, 'stop_reason', None)})")
+            return {"text": fallback, "source": "plantilla", "llm_error": "E-LLM-03"}
         ok, bad = verify_numbers(text, facts)
         if not ok:
             self.failures.append(f"E-LLM-02 cifras no trazables: {bad}")

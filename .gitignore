@@ -7,3 +7,10 @@ venv/
 runs/
 data/*.db
 config/recipients.local.yaml
+backups/
+.env.*
+!.env.example
+*.hatch_key
+.hatch_key
+CREDENCIALES*.txt
+Tokens*.txt

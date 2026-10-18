@@ -32,7 +32,14 @@ jobs:
     timeout-minutes: 20
     env:
       TZ: America/Mexico_City
+      # DB_SOURCE=demo (default) usa la BD sintética; DB_SOURCE=real usa DB_URL o DATABASE_URL.
+      # La BD del curso (alumnos-pgbouncer) solo es alcanzable desde el servidor del curso:
+      # activar 'real' únicamente con un self-hosted runner que la alcance (RUNNER_LABEL).
+      DB_SOURCE: ${{ vars.DB_SOURCE || 'demo' }}
       DB_URL: ${{ secrets.DB_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DB_TARGET: ${{ vars.DB_TARGET || 'server' }}
+      LLM_ENABLED: ${{ vars.LLM_ENABLED || 'true' }}
       SCOPE: ${{ inputs.scope || vars.SCOPE || 'all' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.DRY_RUN || 'true' }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -40,10 +47,10 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       SMTP_FROM: ${{ secrets.SMTP_FROM }}
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAM_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
-      ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID }}
+      ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID || secrets.TELEGRAM_ID }}
       REDIRECT_ALL_TO: ${{ secrets.REDIRECT_ALL_TO }}
       REDIRECT_TELEGRAM_CHAT_ID: ${{ secrets.REDIRECT_TELEGRAM_CHAT_ID }}
       RECIPIENTS_YAML: ${{ secrets.RECIPIENTS_YAML }}
@@ -58,8 +65,8 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: BD demo sintética (solo si no hay secret DB_URL)
-        if: env.DB_URL == ''
+      - name: BD demo sintética (DB_SOURCE=demo)
+        if: env.DB_SOURCE == 'demo'
         run: python scripts/seed_demo_db.py
 
       - name: Destinatarios desde secret RECIPIENTS_YAML
@@ -79,6 +86,7 @@ jobs:
       - name: Ejecutar agentes
         shell: bash
         run: |
+          if [ "$DB_SOURCE" = "demo" ]; then unset DB_URL DATABASE_URL DATABASE_URL_LOCAL; fi
           ARGS=""
           if [ -n "${{ inputs.as_of }}" ]; then ARGS="--as-of ${{ inputs.as_of }}"; fi
           python main.py $ARGS

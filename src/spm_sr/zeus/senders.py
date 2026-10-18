@@ -8,11 +8,12 @@ from email.message import EmailMessage
 
 import requests
 
-from ..core.config import secret
+from ..core.config import redact, secret
 
 
 class SendError(Exception):
-    pass
+    def __init__(self, msg: str):
+        super().__init__(redact(msg))
 
 
 class EmailSender:
