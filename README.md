@@ -82,6 +82,18 @@ TELEGRAM_BOT_TOKEN=xxx python scripts/telegram_chat_ids.py
 ```
 y se agrega su `chat_id` en `RECIPIENTS_YAML`.
 
+## Datos de prueba en PostgreSQL
+
+`scripts/generate_spm_dummy.py` genera **datos sintéticos** (ficticios, semilla fija) para las 12 tablas tipo SPM, cada una con 100–200 registros: proyectos sanos, atrasados, con sobrecosto, vencidos y con fallas de calidad de datos, más SR declarados con ~20 % de "optimismo".
+
+```bash
+python scripts/generate_spm_dummy.py --out data/spm_dummy_postgres.sql            # SQL para PostgreSQL
+python scripts/generate_spm_dummy.py --sqlite data/spm_dummy.db                    # o BD local SQLite
+DB_URL=sqlite:///data/spm_dummy.db python main.py --dry-run
+```
+
+> Los 100 portafolios y 100 programas cumplen el mínimo de registros, pero la operación se concentra en 6 portafolios y 25 programas para que los roll-ups tengan sentido; los demás quedan sin proyectos y no generan mensajes.
+
 ## Adaptar a la réplica real
 Solo se editan archivos de `config/`:
 
