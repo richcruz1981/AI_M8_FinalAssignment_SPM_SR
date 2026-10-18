@@ -133,8 +133,22 @@ def test_real_send_idempotent_and_skips_missing_chat(cfg):
     n = len(tg.sent)
     st2 = _run(cfg, dry_run=False, zeus=z)                                       # misma fecha
     assert len(tg.sent) == n                                                     # 0 duplicados
-    assert all(d["reason"] == "ya enviado hoy (idempotencia)" for d in st2.zeus["deliveries"] if d["target"] in ("111", "222"))
+    assert all(d["reason"] == "ya enviado en este turno (idempotencia)" for d in st2.zeus["deliveries"] if d["target"] in ("111", "222"))
 
+
+
+def test_second_slot_same_day_sends_again(cfg, monkeypatch):
+    """Dos envíos al día: el turno de la tarde (SR_SLOT=pm) no se bloquea por el de la mañana."""
+    tg = FakeTelegram()
+    z = Zeus(cfg[0], RECIPS, telegram_sender=tg, sleep=no_sleep)
+    monkeypatch.setenv("SR_SLOT", "am")
+    _run(cfg, dry_run=False, zeus=z)
+    n = len(tg.sent)
+    _run(cfg, dry_run=False, zeus=z)
+    assert len(tg.sent) == n                                                     # mismo turno: sin duplicados
+    monkeypatch.setenv("SR_SLOT", "pm")
+    _run(cfg, dry_run=False, zeus=z)
+    assert len(tg.sent) == 2 * n                                                 # turno de la tarde: se envía
 
 def test_redirect_sends_everything_to_one_chat_with_original_recipient(cfg):
     settings = cfg[0]

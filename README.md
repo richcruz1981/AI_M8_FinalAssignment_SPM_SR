@@ -1,6 +1,6 @@
 # SR multi-agente para ServiceNow SPM — Cronos · Thanatos · Zeus
 
-Proceso autónomo que lee la réplica de ServiceNow SPM, calcula los KPIs estándar del Status Report (19 indicadores en 3 niveles: Salud, Desempeño, Control) y los envía diario por Telegram al PM, PgM y PfM (el correo se retiró el 2026-10-18: no hay servidor SMTP).
+Proceso autónomo que lee la réplica de ServiceNow SPM, calcula los KPIs estándar del Status Report (19 indicadores en 3 niveles: Salud, Desempeño, Control) y los envía dos veces al día (07:00 y 15:00 CDMX, lunes a viernes) por Telegram al PM, PgM y PfM (el correo se retiró el 2026-10-18: no hay servidor SMTP).
 
 ```
 Scheduler ─► Cronos (lector) ──C1──► Thanatos (analista) ──C2──► Zeus (comunicador) ─► Telegram
@@ -49,9 +49,9 @@ Dos workflows en *Actions*:
 | Workflow | Disparo | Qué hace |
 |---|---|---|
 | `CI (pruebas)` | cada push / PR | pytest + corrida de humo |
-| `SR diario` | lunes–viernes 07:00 CDMX y manual (*Run workflow*) | Corre los 3 agentes; publica `runs/` como artefacto y el reporte de fallas en el resumen |
+| `SR dos veces al día` | lunes–viernes 07:00 y 15:00 CDMX y manual (*Run workflow*) | Corre los 3 agentes; publica `runs/` como artefacto y el reporte de fallas en el resumen |
 
-**Sin configurar nada**, `SR diario` corre con la BD demo en dry-run. Para hacerlo real, en *Settings → Secrets and variables → Actions*:
+Las corridas programadas **envían de verdad** (variable `SCHEDULE_DRY_RUN=true` las pasa a simulacro); la idempotencia es por turno (`SR_SLOT` = am / pm / manual), así que nadie recibe el mismo turno dos veces. Sin `DB_SOURCE=real` usa la BD demo. Para hacerlo real, en *Settings → Secrets and variables → Actions*:
 
 | Secret | Uso |
 |---|---|

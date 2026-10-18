@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -63,11 +64,13 @@ class Zeus:
 
     def _deliver(self, state: RunState, ledger: dict, recipient: str, target: str | None,
                  messages: list[str]) -> dict[str, Any]:
-        key = f"{state.run_date.isoformat()}|{recipient.lower()}|{CHANNEL}"
+        # SR_SLOT separa los envíos del mismo día (p. ej. "am"/"pm" o una corrida manual); vacío = uno por día
+        slot = os.environ.get("SR_SLOT", "").strip()
+        key = f"{state.run_date.isoformat()}{'|' + slot if slot else ''}|{recipient.lower()}|{CHANNEL}"
         base = {"recipient": recipient, "channel": CHANNEL, "target": target, "ts": now_iso(), "attempt": 0,
                 "parts": len(messages)}
         if ledger.get(key, {}).get("status") == "SENT":
-            return {**base, "status": "SKIPPED", "reason": "ya enviado hoy (idempotencia)"}
+            return {**base, "status": "SKIPPED", "reason": "ya enviado en este turno (idempotencia)"}
         outbox = self.runs_dir / state.run_date.isoformat() / "outbox"
         write_json(outbox / f"{_slug(recipient)}__{CHANNEL}.json", {"target": target, "messages": messages})
         if state.dry_run:
@@ -191,7 +194,7 @@ class Zeus:
         attempted = [d for d in deliveries if d["status"] in ("SENT", "FAILED")]
         failed = [d for d in attempted if d["status"] == "FAILED"]
         skipped_bad = [d for d in deliveries if d["status"] == "SKIPPED" and d.get("reason") not in
-                       ("dry-run", "ya enviado hoy (idempotencia)")]
+                       ("dry-run", "ya enviado en este turno (idempotencia)")]
         if attempted and len(failed) == len(attempted):
             status = Signal.FAILED
         elif failed or skipped_bad:

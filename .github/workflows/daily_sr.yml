@@ -1,8 +1,9 @@
-name: SR diario (Cronos → Thanatos → Zeus)
+name: SR dos veces al día (Cronos → Thanatos → Zeus)
 
 on:
   schedule:
-    - cron: "0 13 * * 1-5"   # 07:00 America/Mexico_City (UTC-6), lunes a viernes
+    - cron: "0 13 * * 1-5"   # 07:00 America/Mexico_City (UTC-6), lunes a viernes — turno "am"
+    - cron: "0 21 * * 1-5"   # 15:00 America/Mexico_City (UTC-6), lunes a viernes — turno "pm"
   workflow_dispatch:
     inputs:
       scope:
@@ -46,7 +47,10 @@ jobs:
       TUNNEL_REMOTE_PORT: ${{ vars.TUNNEL_REMOTE_PORT || '56432' }}
       LLM_ENABLED: ${{ vars.LLM_ENABLED || 'true' }}
       SCOPE: ${{ inputs.scope || vars.SCOPE || 'all' }}
-      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.DRY_RUN || 'true' }}
+      # Corridas programadas envían de verdad (SCHEDULE_DRY_RUN=true las pone en simulacro); manuales: input dry_run
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.SCHEDULE_DRY_RUN || 'false' }}
+      # Turno para la idempotencia: un envío por persona por turno (am/pm); cada corrida manual es su propio turno
+      SR_SLOT: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 21 * * 1-5' && 'pm' || 'am') || format('manual-{0}', github.run_id) }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAM_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID || secrets.TELEGRAM_CHAT_ID || secrets.TELEGRAM_ID }}
@@ -131,6 +135,18 @@ jobs:
         if: always()
         shell: bash
         run: |
+          python - <<'PY' || true
+          import glob, json, os
+          d = sorted(glob.glob("runs/20*/"))[-1] if glob.glob("runs/20*/") else None
+          if d:
+              z = json.load(open(d + "zeus.json")) if os.path.exists(d + "zeus.json") else {"deliveries": []}
+              c = json.load(open(d + "cronos.json"))["signal"] if os.path.exists(d + "cronos.json") else {}
+              st = {}
+              for x in z.get("deliveries", []):
+                  st[x["status"]] = st.get(x["status"], 0) + 1
+              print(f"::notice title=SR {os.environ.get('SR_SLOT')}::BD={os.environ.get('DB_SOURCE')} · dry_run={os.environ.get('DRY_RUN')} · "
+                    f"Cronos={c.get('status')} ({c.get('records_in')} proyectos) · entregas {st}")
+          PY
           f=$(ls runs/*/failure_report.md 2>/dev/null | tail -1)
           if [ -n "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi
 
