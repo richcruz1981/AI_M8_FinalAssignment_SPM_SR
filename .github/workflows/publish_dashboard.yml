@@ -130,8 +130,10 @@ jobs:
             done
             curl -s "$SITE/" | grep -o '<title>[^<]*</title>' | sed 's/^/- /'
             curl -s "$SITE/data/kpis.json" | python -c "import json,sys; d=json.load(sys.stdin); print(f\"- JSON: {len(d['projects'])} proyectos, asOf {d['asOf']}, generado {d['generatedAt']}\")"
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY" | tee verify.txt
+          echo "::notice title=Dashboard publicado::$(tr '\n' ' ' < verify.txt)"
           code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/data/kpis.json"); [ "$code" = "200" ]
+          curl -s "$SITE/" | grep -q 'Portfolio Health Dashboard' || { echo "::error::La portada no es el dashboard"; exit 1; }
 
       - name: Cerrar túnel y borrar llave
         if: always()
