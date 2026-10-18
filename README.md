@@ -84,14 +84,16 @@ y se agrega su `chat_id` en `RECIPIENTS_YAML`.
 
 ## Dashboard web (React)
 
-Sitio: https://hatchvps.com/iaang01/edgarcruz/ — interfaz en inglés, paleta PepsiCo, 19 KPIs en gráficas.
+Portada: https://hatchvps.com/iaang01/edgarcruz/ — página original de hatch con paleta PepsiCo y, al inicio, la sección **Proyecto Final Edgar Cruz** con dos links: dashboard de uso del bot (`/app/`) y dashboard de KPIs (`/dashboard/`). La portada se arma con `scripts/build_landing.py` desde `site/original_index.html`.
+
+Dashboard: https://hatchvps.com/iaang01/edgarcruz/dashboard/ — interfaz en inglés, paleta PepsiCo, 19 KPIs en gráficas.
 
 | Pieza | Detalle |
 |---|---|
 | Datos | `scripts/export_dashboard_data.py` corre Cronos → Thanatos (sin LLM) y genera `data/kpis.json` |
 | Front | `dashboard/` — Vite 5 + React 18 + Recharts; filtros (portafolio, programa, región, categoría, salud, PM, búsqueda, activos/todos) y toggle Bars / Columns / Donut |
 | Publicación | `.github/workflows/publish_dashboard.yml`: túnel SSH → export → build → SFTP a `/www` (cada hora + manual). No sube `.py` |
-| Respaldo | La portada original del servidor se guarda una vez como `_hatch_welcome_backup.html` |
+| Respaldo | Portada original en el servidor (`_hatch_welcome_backup.html`) y en el repo (`site/original_index.html`) |
 
 Local: `python scripts/export_dashboard_data.py && cd dashboard && npm ci && npm run dev`.
 

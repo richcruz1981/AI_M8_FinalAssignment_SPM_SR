@@ -1,6 +1,7 @@
-name: Publicar dashboard web (React) en hatchvps
+name: Publicar sitio (portada + dashboard React) en hatchvps
 
-# Cronos → Thanatos exportan los KPIs a un JSON estático; Vite compila el dashboard React; SFTP lo publica en /www.
+# Cronos → Thanatos exportan los KPIs a un JSON estático; Vite compila el dashboard React (/www/dashboard/);
+# la portada /www/index.html es la original de hatch con paleta PepsiCo y la sección "Proyecto Final Edgar Cruz".
 # No sube ningún .py (el servidor reiniciaría app.py / el bot) ni toca app.py, spm_sr.zip, config ni .env.
 on:
   schedule:
@@ -83,41 +84,39 @@ jobs:
           npm run build
           find dist -type f | sort
 
-      - name: Respaldar la portada original (una sola vez)
-        shell: bash
-        run: |
-          set +e
-          printf 'get _hatch_welcome_backup.html have_backup.html\n' | sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b - "$TUNNEL_SSH_TARGET" > /dev/null 2>&1
-          if [ -s have_backup.html ]; then echo "Respaldo ya existe en el servidor"; exit 0; fi
-          printf 'get index.html original_index.html\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" > /dev/null 2>&1
-          if [ -s original_index.html ] && ! grep -q 'Portfolio Health Dashboard' original_index.html; then
-            printf 'put original_index.html _hatch_welcome_backup.html\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" > /dev/null
-            echo "Portada original respaldada como _hatch_welcome_backup.html" | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "No había index.html original que respaldar"
-          fi
+      - name: Armar portada (original de hatch + paleta PepsiCo + sección Proyecto Final)
+        run: python scripts/build_landing.py --out build/index.html
 
-      - name: Subir dashboard por SFTP (assets → datos → index.html al final)
+      - name: Subir por SFTP (dashboard en /dashboard/, portada en /index.html)
         shell: bash
         run: |
           set -euo pipefail
           cd dashboard/dist
           if find . -name '*.py' | grep -q .; then echo "::error::dist contiene .py"; exit 1; fi
           {
-            echo '-mkdir assets'
-            echo '-mkdir data'
-            find assets -type f | sed 's#.*#put "&" "&"#'
-            echo 'put "data/kpis.json" "data/kpis.json"'
-            find . -maxdepth 1 -type f ! -name index.html | sed 's#^\./##; s#.*#put "&" "&"#'
-            echo 'put "index.html" "index.html"'
+            echo '-mkdir dashboard'
+            echo '-mkdir dashboard/assets'
+            echo '-mkdir dashboard/data'
+            find assets -type f | sed 's#.*#put "&" "dashboard/&"#'
+            echo 'put "data/kpis.json" "dashboard/data/kpis.json"'
+            find . -maxdepth 1 -type f ! -name index.html | sed 's#^\./##; s#.*#put "&" "dashboard/&"#'
+            echo 'put "index.html" "dashboard/index.html"'
+            echo 'put "../../build/index.html" "index.html"'
           } > ../../up.txt
           sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b ../../up.txt "$TUNNEL_SSH_TARGET" > /dev/null
           echo "Subidos $(grep -c '^put' ../../up.txt) archivos"
-          # Borrar assets de compilaciones anteriores
-          printf 'ls -1 assets\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" 2>/dev/null | grep -v '^sftp>' | xargs -n1 basename 2>/dev/null | sort > ../../remote.txt || true
+          # Assets viejos: los de la raíz (versión anterior del dashboard en /) y los de compilaciones previas
           ls assets | sort > ../../local.txt
-          comm -23 ../../remote.txt ../../local.txt | sed 's#.*#-rm "assets/&"#' > ../../rm.txt
-          if [ -s ../../rm.txt ]; then sftp -i ~/.ssh/hatch_key -b ../../rm.txt "$TUNNEL_SSH_TARGET" > /dev/null 2>&1 || true; echo "Assets viejos borrados: $(wc -l < ../../rm.txt)"; fi
+          printf 'ls -1 dashboard/assets\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" 2>/dev/null | grep -v '^sftp>' | xargs -n1 basename 2>/dev/null | sort > ../../remote.txt || true
+          {
+            comm -23 ../../remote.txt ../../local.txt | sed 's#.*#-rm "dashboard/assets/&"#'
+            printf 'ls -1 assets\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" 2>/dev/null | grep -v '^sftp>' | grep 'index-' | xargs -n1 basename 2>/dev/null | sed 's#.*#-rm "assets/&"#'
+            echo '-rm "data/kpis.json"'
+            echo '-rmdir "data"'
+            echo '-rmdir "assets"'
+          } > ../../rm.txt
+          sftp -i ~/.ssh/hatch_key -b ../../rm.txt "$TUNNEL_SSH_TARGET" > /dev/null 2>&1 || true
+          echo "Limpieza: $(wc -l < ../../rm.txt) operaciones"
 
       - name: Verificar sitio publicado
         shell: bash
@@ -125,15 +124,17 @@ jobs:
           sleep 5
           {
             echo "### Verificación"
-            for p in "/" "/index.html" "/data/kpis.json" "/.env" "/app/"; do
+            for p in "/" "/dashboard/" "/dashboard/data/kpis.json" "/.env" "/app/" "/data/kpis.json"; do
               echo "- GET $SITE$p -> HTTP $(curl -s -o /dev/null -w '%{http_code}' "$SITE$p")"
             done
-            curl -s "$SITE/" | grep -o '<title>[^<]*</title>' | sed 's/^/- /'
-            curl -s "$SITE/data/kpis.json" | python -c "import json,sys; d=json.load(sys.stdin); print(f\"- JSON: {len(d['projects'])} proyectos, asOf {d['asOf']}, generado {d['generatedAt']}\")"
+            curl -s "$SITE/" | grep -o '<title>[^<]*</title>' | sed 's/^/- portada /'
+            curl -s "$SITE/dashboard/" | grep -o '<title>[^<]*</title>' | sed 's/^/- dashboard /'
+            curl -s "$SITE/dashboard/data/kpis.json" | python -c "import json,sys; d=json.load(sys.stdin); print(f\"- JSON: {len(d['projects'])} proyectos, asOf {d['asOf']}, generado {d['generatedAt']}\")"
           } | tee -a "$GITHUB_STEP_SUMMARY" | tee verify.txt
-          echo "::notice title=Dashboard publicado::$(tr '\n' ' ' < verify.txt)"
-          code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/data/kpis.json"); [ "$code" = "200" ]
-          curl -s "$SITE/" | grep -q 'Portfolio Health Dashboard' || { echo "::error::La portada no es el dashboard"; exit 1; }
+          echo "::notice title=Sitio publicado::$(tr '\n' ' ' < verify.txt)"
+          curl -s "$SITE/" | grep -q 'Proyecto Final Edgar Cruz' || { echo "::error::La portada no tiene la sección"; exit 1; }
+          curl -s "$SITE/dashboard/" | grep -q 'Portfolio Health Dashboard' || { echo "::error::/dashboard/ no es el dashboard"; exit 1; }
+          [ "$(curl -s -o /dev/null -w '%{http_code}' "$SITE/dashboard/data/kpis.json")" = "200" ]
 
       - name: Cerrar túnel y borrar llave
         if: always()

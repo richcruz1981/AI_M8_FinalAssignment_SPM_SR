@@ -29,6 +29,27 @@ from spm_sr.zeus import i18n  # noqa: E402
 
 st.set_page_config(page_title="SPM Status Reports · Radamantis", page_icon="📊", layout="wide")
 
+# PepsiCo palette (navy #28458E, electric blue #0096D6, tangelo #EB7B30) — same as the web dashboard
+NAVY, BLUE, TANGELO, INK, INK2 = "#28458E", "#0096D6", "#EB7B30", "#14213D", "#5B6475"
+st.markdown(f"""<style>
+  .stApp {{ background:#F4F6FA; }}
+  header[data-testid="stHeader"] {{ background:transparent; }}
+  .block-container {{ padding-top:1.2rem; }}
+  .pf-hero {{ background:linear-gradient(110deg,{NAVY} 0%,#1F3A7D 60%,#0B6FAE 100%); color:#fff; border-radius:14px;
+             padding:20px 26px; margin-bottom:18px; border-bottom:4px solid {TANGELO}; }}
+  .pf-hero h1 {{ color:#fff; font-size:1.7rem; margin:0; padding:0; }}
+  .pf-hero p {{ color:#DCE6F5; margin:.35rem 0 0; font-size:.92rem; }}
+  .pf-hero a {{ color:#FFB98A; font-weight:600; }}
+  div[data-testid="stMetric"] {{ background:#fff; border:1px solid #E1E6EE; border-top:4px solid {NAVY};
+             border-radius:12px; padding:12px 16px; }}
+  div[data-testid="stMetricValue"] {{ color:{INK}; }}
+  div[data-testid="stMetricLabel"] p {{ color:{INK2}; font-weight:600; }}
+  h2, h3 {{ color:{NAVY} !important; }}
+  .stButton > button {{ background:{NAVY}; color:#fff; border:0; border-radius:8px; }}
+  .stButton > button:hover {{ background:{BLUE}; color:#fff; }}
+  a {{ color:{BLUE}; }}
+</style>""", unsafe_allow_html=True)
+
 INTENT_EN = {"total": "Total", "categorias": "Categories", "regiones": "Regions", "programas": "Programs",
              "portafolios": "Portfolios", "calidad": "Data quality", "estatus": "Status by ID", "menu": "Menu"}
 
@@ -43,9 +64,11 @@ def bot() -> BotRunner:
 
 runner = bot()
 s = runner.status
-st.title("📊 Project Status Reports · Radamantis bot")
-st.caption("Cronos (reads) → Thanatos (analyzes) → Zeus (communicates), orchestrated by Radamantis from Telegram. "
-           "**Synthetic** demo data. Dashboard: [Portfolio Health Dashboard](../)")
+st.markdown(
+    '<div class="pf-hero"><h1>📊 Project Status Reports · Radamantis bot</h1>'
+    "<p>Cronos (reads) → Thanatos (analyzes) → Zeus (communicates), orchestrated by Radamantis from Telegram. "
+    "<b>Synthetic</b> demo data. · <a href=\"../dashboard/\">Portfolio Health Dashboard</a> · "
+    "<a href=\"../\">Proyecto Final Edgar Cruz</a></p></div>", unsafe_allow_html=True)
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Bot status", s["state"])
@@ -56,7 +79,11 @@ st.write(f"Started: `{s['started_at']}` · last poll: `{s['last_poll']}` · DB: 
 if s.get("last_error"):
     st.warning(f"Last error: {s['last_error']}")
 if s["by_intent"]:
-    st.bar_chart({INTENT_EN.get(k, k): v for k, v in s["by_intent"].items()})
+    data = {INTENT_EN.get(k, k): v for k, v in s["by_intent"].items()}
+    try:
+        st.bar_chart(data, color=BLUE)
+    except TypeError:  # older Streamlit without the color argument
+        st.bar_chart(data)
 
 st.subheader("Summary (same queries as the bot)")
 try:

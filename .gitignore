@@ -19,3 +19,4 @@ Tokens*.txt
 dashboard/node_modules/
 dashboard/dist/
 dashboard/public/data/kpis.json
+build/
