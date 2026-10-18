@@ -60,7 +60,10 @@ class Radamantis:
         self.zeus = zeus
         self.allowed = {str(x) for x in (allowed_chat_ids or set()) if str(x).strip()}
         self.ttl = cache_ttl_s
-        self.tz = ZoneInfo(tz)
+        try:
+            self.tz = ZoneInfo(tz)
+        except Exception:  # noqa: BLE001 - contenedor sin tzdata: CDMX es UTC-6 fijo desde 2022
+            self.tz = dt.timezone(dt.timedelta(hours=-6), "CDMX")
         self.clock = clock
         self.today = today or (lambda: dt.datetime.now(self.tz).date())
         self._cache: tuple[float, dict, dict | None, str] | None = None

@@ -8,7 +8,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import yaml
+try:
+    import yaml
+except ImportError:  # servidor del curso sin PyYAML: se usan las copias .json de config/
+    yaml = None
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -17,7 +20,14 @@ def _load_yaml(path: str | Path) -> dict[str, Any]:
     p = Path(path)
     if not p.is_absolute():
         p = ROOT / p
-    if not p.exists():
+    if yaml is None or not p.exists():
+        j = p.with_suffix(".json")
+        if j.exists():
+            import json
+
+            return json.loads(j.read_text(encoding="utf-8")) or {}
+        if yaml is None:
+            raise RuntimeError(f"PyYAML no está instalado y no existe {j.name}")
         return {}
     return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
 

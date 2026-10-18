@@ -34,8 +34,15 @@ jobs:
           cp bot.py pkg/
           (cd src && zip -qr ../pkg/spm_sr.zip spm_sr -x '*__pycache__*')
           python -c "import zipfile; z=zipfile.ZipFile('pkg/spm_sr.zip'); print(len(z.namelist()), 'archivos en spm_sr.zip')"
-          cp config/settings.yaml config/schema_map.yaml config/thresholds.yaml config/recipients.yaml pkg/config/
-          printf '%s\n' "# Extra para el bot Radamantis (el resto ya viene en el servidor)" "PyYAML" > pkg/requirements.txt
+          # El servidor no trae PyYAML: la configuración viaja también como JSON (config.py la lee si falta yaml)
+          python - <<'PY'
+          import json, pathlib, yaml
+          for n in ("settings", "schema_map", "thresholds", "recipients"):
+              data = yaml.safe_load(pathlib.Path(f"config/{n}.yaml").read_text(encoding="utf-8"))
+              pathlib.Path(f"pkg/config/{n}.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+          PY
+          cp config/*.yaml pkg/config/
+          printf '%s\n' "# El bot Radamantis no necesita librerías extra (usa las del servidor)" > pkg/requirements.txt
           {
             echo "TELEGRAM_TOKEN=$TELEGRAM_TOKEN"
             echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID"
