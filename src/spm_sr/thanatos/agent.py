@@ -5,6 +5,7 @@ import logging
 from collections import defaultdict
 from typing import Any
 
+from ..cerbero import get_cerbero
 from ..core.state import RunState, Signal, make_signal
 from ..core.util import norm, now_iso
 from . import kpi_rules as K
@@ -127,16 +128,23 @@ class Thanatos:
             rollups.append(rollup("Portafolio", {**ent, "id": pid}, reps))
 
         narrator = Narrator(self.settings)
+        guard = get_cerbero(self.settings)
+        flagged = set((c.get("security") or {}).get("flagged_records", []))
+
+        def _narrate(facts: dict, fallback: str, subject: str) -> dict:
+            ok = not narrator.enabled or guard.llm_input(facts, flagged, subject)   # Cerbero (gate "llm_in")
+            return narrator.narrate(facts, fallback, guard=guard, subject=subject, allow_llm=ok)
+
         # Primero los roll-ups (su narrativa es la que se envía por Telegram a PgM/PfM): portafolios y luego
         # programas, de mayor a menor número de proyectos; el presupuesto de llamadas restante va a proyectos.
         order = sorted(rollups, key=lambda ru: (ru["level"] != "Portafolio", -(ru.get("n_projects") or 0)))
         for ru in order:
-            ru["narrative"] = narrator.narrate(ru, template_rollup(ru))
+            ru["narrative"] = _narrate(ru, template_rollup(ru), f"{ru['level']} {ru.get('number')}")
         for r in reports:
             facts = {k: r[k] for k in ("number", "name", "health", "performance", "control", "alerts", "sr_stale")}
-            r["narrative"] = narrator.narrate(facts, template_project(r))
+            r["narrative"] = _narrate(facts, template_project(r), str(r.get("number")))
         for f in narrator.failures:
-            code = f.split()[0].rstrip(":") if f.startswith("E-LLM-") else "E-LLM-01"
+            code = f.split()[0].rstrip(":") if f.startswith(("E-LLM-", "E-SEC-")) else "E-LLM-01"
             state.add_error(code, self.name, f, severity="Baja")
 
         dq = c.get("data_quality", [])

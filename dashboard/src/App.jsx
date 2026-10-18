@@ -203,7 +203,8 @@ export default function App() {
         </div>
         <div className="stamp">
           <span className="badge">Synthetic demo data</span>
-          <span>Data as of <b>{data.asOf}</b> · refreshed {data.generatedAt.replace("T", " ")} (CDMX)</span>
+          <span className="lastq">Last DB query <b>{lastDbQuery(data)}</b> (CDMX)</span>
+          <span>Data as of <b>{data.asOf}</b> · refreshed hourly{data.security ? ` · security check: ${data.security.blocked_fields} blocked field(s)` : ""}</span>
         </div>
       </header>
 
@@ -316,4 +317,14 @@ export default function App() {
       <Drawer p={picked} onClose={() => setPick(null)} />
     </div>
   );
+}
+
+function lastDbQuery(data) {
+  const iso = data.lastDbQuery || data.generatedAt;
+  try {
+    return new Date(iso).toLocaleString("en-CA", { timeZone: "America/Mexico_City", hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+  } catch {
+    return String(iso).replace("T", " ").slice(0, 16);
+  }
 }

@@ -34,6 +34,9 @@ class BotRunner:
         fl = os.environ.get("BOT_FILE_LOGS", "0").strip().lower() in ("1", "true", "si", "yes")
         self.file_logs = fl if file_logs is None else file_logs
         self.journal = Path(self.settings["runs_dir"]) / "bot" / "requests.jsonl"
+        from ..cerbero import get_cerbero
+
+        get_cerbero(self.settings, "bot")      # la cadena de auditoría de este proceso se etiqueta como "bot"
         self.api = TelegramBotAPI()
         self.zeus = Zeus(self.settings, recipients, telegram_sender=self.api)
         self.allowed = allowed_chats(self.settings, recipients)

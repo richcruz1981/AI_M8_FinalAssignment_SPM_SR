@@ -19,6 +19,7 @@ import time
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
+from ..cerbero import get_cerbero
 from ..core.state import RunState, Signal
 from ..cronos import Cronos
 from ..thanatos import Thanatos
@@ -73,6 +74,8 @@ class Radamantis:
         self.clock = clock
         self.today = today or (lambda: dt.datetime.now(self.tz).date())
         self._cache: tuple[float, dict, dict | None, str] | None = None
+        self.last_db_read: str | None = None          # última consulta real a la BD (se muestra en /app/)
+        self.guard = get_cerbero(self.settings, "bot")
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ datos (Cronos -> Thanatos)
@@ -91,6 +94,7 @@ class Radamantis:
         if cronos_out["signal"]["status"] != Signal.FAILED.value:
             thanatos_out = Thanatos(self.settings, self.schema_map, self.thresholds).run(state)
         when = dt.datetime.now(self.tz).strftime("%Y-%m-%d %H:%M (CDMX)")
+        self.last_db_read = dt.datetime.now(self.tz).strftime("%Y-%m-%d %H:%M:%S (CDMX)")
         if cronos_out["signal"]["status"] != Signal.FAILED.value:
             self._cache = (now, cronos_out, thanatos_out, when)
         return cronos_out, thanatos_out, when, state.errors
@@ -99,18 +103,33 @@ class Radamantis:
     def handle(self, chat_id: Any, text: str | None, user_name: str | None = None) -> dict[str, Any]:
         started = time.monotonic()
         chat = str(chat_id)
-        intent = parse_intent(text)
-        result: dict[str, Any] = {"chat_id": chat, "text": (text or "")[:80], "intent": intent}
-        if self.allowed and chat not in self.allowed:
-            result.update(status="UNAUTHORIZED", deliveries=self.zeus.reply(chat, render_bot.unauthorized(chat)))
-            log.warning("Chat no autorizado %s", chat)
+        authorized = not self.allowed or chat in self.allowed
+        allowed = self.allowed or None
+        # Cerbero (gate "inbound"): autorización, tamaño, ráfagas, caracteres de control e inyección
+        verdict = self.guard.inbound(chat, text, authorized)
+        result: dict[str, Any] = {"chat_id": chat, "intent": None, "security": verdict["decision"],
+                                  "security_reasons": verdict["reasons"]}
+        if verdict["decision"] == "QUARANTINE":                      # emisor detenido: no se responde
+            result.update(status="QUARANTINED", deliveries=[])
             return result
+        if verdict["decision"] == "BLOCK":
+            if verdict["reasons"] == ["AUTH-01"]:
+                result.update(status="UNAUTHORIZED", deliveries=self.zeus.reply(chat, render_bot.unauthorized(chat)))
+                log.warning("Chat no autorizado %s", chat)
+            else:
+                msgs = render_bot.blocked(verdict.get("quarantined", False), self.guard.quarantine_s // 60)
+                result.update(status="BLOCKED", deliveries=self.zeus.reply(chat, msgs, allowed_chats=allowed))
+            return result
+        text = verdict["text"]
+        intent = parse_intent(text)
+        result["intent"] = intent
         if intent in (None, "menu"):
             msgs = render_bot.welcome(user_name) if intent == "menu" else render_bot.not_understood()
-            result.update(status="OK", deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard()))
+            result.update(status="OK", deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard(), allowed_chats=allowed))
             return result
         if intent == "estatus" and not re.search(_ID_RX, text or "", re.IGNORECASE):
-            result.update(status="OK", deliveries=self.zeus.reply(chat, render_bot.ask_id(), render_bot.keyboard()))
+            result.update(status="OK", deliveries=self.zeus.reply(chat, render_bot.ask_id(), render_bot.keyboard(),
+                                                                  allowed_chats=allowed))
             return result
         assert intent in INTENTS or intent == "estatus"
         cronos_out, thanatos_out, when, errors = self._data()
@@ -118,7 +137,8 @@ class Radamantis:
             err = next((e for e in errors if e.blocking), None)
             code, detail = (err.code, err.message) if err else ("E-DATA", "Read failed")
             result.update(status="FAILED", error=code,
-                          deliveries=self.zeus.reply(chat, render_bot.error(code, detail), render_bot.keyboard()))
+                          deliveries=self.zeus.reply(chat, render_bot.error(code, detail), render_bot.keyboard(),
+                                                     allowed_chats=allowed))
             return result
         if intent == "estatus":
             res = status_by_id(text or "", cronos_out, thanatos_out)
@@ -129,7 +149,8 @@ class Radamantis:
         png = render_chart(res)
         caption = f"📊 Chart · data read {when}" if png else ""
         result.update(status="OK", answer=res, chart=bool(png),
-                      deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard(), photo=png, caption=caption))
+                      deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard(), photo=png, caption=caption,
+                                                 allowed_chats=allowed))
         result["latency_s"] = round(time.monotonic() - started, 2)
         log.info("Petición %s de %s respondida en %ss", intent, chat, result["latency_s"])
         return result

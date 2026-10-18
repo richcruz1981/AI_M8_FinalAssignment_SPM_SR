@@ -51,6 +51,7 @@ jobs:
             echo "LLM_ENABLED=false"
             echo "BOT_ALLOWED_CHAT_IDS=${BOT_ALLOWED_CHAT_IDS}"
             echo "BOT_FILE_LOGS=0"
+            echo "AUDIT_FILE_LOG=0"   # en el servidor todo archivo de /www es público: auditoría solo en BD
           } > pkg/.env
           find pkg -type f | sort | sed 's#^pkg/##' | grep -v '^\.env$'
 

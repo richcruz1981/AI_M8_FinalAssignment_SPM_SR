@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from ..cerbero import SecurityHalt, get_cerbero
 from ..core.state import RunState, Signal, make_signal
 from ..core.util import now_iso, write_json
 from . import render
@@ -39,6 +40,7 @@ class Zeus:
         self.interval = float(self.n.get("telegram_min_interval_s", 1.1))   # ~1 msg/s por chat (límite Telegram)
         self.runs_dir = Path(settings["runs_dir"])
         self._last_send = 0.0
+        self.guard = get_cerbero(settings)
 
     # ------------------------------------------------------------------ ledger / idempotencia
     def _ledger_path(self) -> Path:
@@ -71,6 +73,12 @@ class Zeus:
                 "parts": len(messages)}
         if ledger.get(key, {}).get("status") == "SENT":
             return {**base, "status": "SKIPPED", "reason": "ya enviado en este turno (idempotencia)"}
+        # Cerbero (gate "outbound"): cada mensaje se revisa antes de guardarse o enviarse; un secreto detiene a Zeus
+        try:
+            messages = [self.guard.outbound(self.name, target or recipient, m) for m in messages]
+        except SecurityHalt as e:
+            state.add_error("E-SEC-03", self.name, f"Cerbero bloqueó el envío a {recipient}: {e.reason}", blocking=True)
+            raise
         outbox = self.runs_dir / state.run_date.isoformat() / "outbox"
         write_json(outbox / f"{_slug(recipient)}__{CHANNEL}.json", {"target": target, "messages": messages})
         if state.dry_run:
@@ -111,9 +119,21 @@ class Zeus:
 
     # ------------------------------------------------------------------ respuesta bajo demanda (bot)
     def reply(self, chat_id: str, messages: list[str], reply_markup: dict | None = None,
-              photo: bytes | None = None, caption: str = "") -> list[dict[str, Any]]:
+              photo: bytes | None = None, caption: str = "", allowed_chats: set[str] | None = None
+              ) -> list[dict[str, Any]]:
         """Responde en el chat que hizo la petición (usado por Radamantis). Sin ledger: cada petición se responde.
         Si hay gráfica, se envía después del texto y lleva el menú; si la foto falla, el texto ya llegó."""
+        try:                                   # Cerbero (gate "outbound") antes de cualquier envío
+            messages = [self.guard.outbound("zeus", chat_id, m, allowed_chats, "bot_reply") for m in messages]
+            if caption:
+                caption = self.guard.outbound("zeus", chat_id, caption, allowed_chats, "bot_chart_caption")
+            if photo:
+                self.guard.note("zeus", "bot_chart_png", "ALLOW", [f"{len(photo)} bytes", "image/png"],
+                                f"chat ***{str(chat_id)[-4:]}")
+        except SecurityHalt as e:
+            log.error("Cerbero detuvo la respuesta a %s: %s", chat_id, e.reason)
+            return [{"recipient": str(chat_id), "channel": CHANNEL, "status": "FAILED", "attempt": 0,
+                     "reason": f"blocked by security: {e.reason}", "ts": now_iso()}]
         out = []
         for i, part in enumerate(messages):
             markup = reply_markup if i == len(messages) - 1 and not photo else None
@@ -163,39 +183,46 @@ class Zeus:
         started = now_iso()
         ledger = self._ledger()
         deliveries: list[dict] = []
-        if not self.n.get("telegram_enabled", True):
-            log.warning("Telegram deshabilitado en settings: Zeus no envía nada")
-        elif mode == "failure":
-            deliveries += self._send_failure(state, ledger, failure_md or "Falla sin detalle")
-        else:
-            t = state.thanatos or {}
-            reps = {r["project_id"]: r for r in t.get("project_reports", [])}
-            rus = {(ru["level"], ru["id"]): ru for ru in t.get("rollups", [])}
-            partial = None
-            if t.get("signal", {}).get("status") == Signal.PARTIAL.value:
-                q = t.get("quality_summary", {})
-                partial = (f"this run excluded {q.get('excluded', 0)} project(s) for data quality "
-                           f"and logged {q.get('findings', 0)} finding(s); the administrator has the details.")
-            for rc in t.get("recipients_plan", []):
-                chat, active, redirected = self._target(rc.get("email"))
-                if not active:
-                    continue
-                my = [reps[p] for p in rc["projects"] if p in reps]
-                esc = [reps[p] for p in rc["escalations"] if p in reps]
-                my_ru = [rus[("Programa", p)] for p in rc["programs"] if ("Programa", p) in rus] + \
-                        [rus[("Portafolio", p)] for p in rc["portfolios"] if ("Portafolio", p) in rus]
-                msgs = render.telegram(rc, my, my_ru, esc, state.run_date,
-                                       bool(self.n.get("telegram_include_costs")), partial, redirected)
-                deliveries.append(self._deliver(state, ledger, rc.get("email") or rc["user_id"], chat, msgs))
-            if failure_md and any(e.severity == "Alta" for e in state.errors):
-                deliveries += self._send_failure(state, ledger, failure_md)
+        halted = False
+        try:
+            if not self.n.get("telegram_enabled", True):
+                log.warning("Telegram deshabilitado en settings: Zeus no envía nada")
+            elif mode == "failure":
+                deliveries += self._send_failure(state, ledger, failure_md or "Falla sin detalle")
+            else:
+                t = state.thanatos or {}
+                reps = {r["project_id"]: r for r in t.get("project_reports", [])}
+                rus = {(ru["level"], ru["id"]): ru for ru in t.get("rollups", [])}
+                partial = None
+                if t.get("signal", {}).get("status") == Signal.PARTIAL.value:
+                    q = t.get("quality_summary", {})
+                    partial = (f"this run excluded {q.get('excluded', 0)} project(s) for data quality "
+                               f"and logged {q.get('findings', 0)} finding(s); the administrator has the details.")
+                for rc in t.get("recipients_plan", []):
+                    chat, active, redirected = self._target(rc.get("email"))
+                    if not active:
+                        continue
+                    my = [reps[p] for p in rc["projects"] if p in reps]
+                    esc = [reps[p] for p in rc["escalations"] if p in reps]
+                    my_ru = [rus[("Programa", p)] for p in rc["programs"] if ("Programa", p) in rus] + \
+                            [rus[("Portafolio", p)] for p in rc["portfolios"] if ("Portafolio", p) in rus]
+                    msgs = render.telegram(rc, my, my_ru, esc, state.run_date,
+                                           bool(self.n.get("telegram_include_costs")), partial, redirected)
+                    deliveries.append(self._deliver(state, ledger, rc.get("email") or rc["user_id"], chat, msgs))
+                if failure_md and any(e.severity == "Alta" for e in state.errors):
+                    deliveries += self._send_failure(state, ledger, failure_md)
+        except SecurityHalt as e:          # Cerbero detuvo a Zeus: no se envía nada más en esta corrida
+            halted = True
+            log.error("Zeus detenido por Cerbero: %s", e.reason)
+            deliveries.append({"recipient": "(halted)", "channel": CHANNEL, "status": "FAILED", "attempt": 0,
+                               "reason": f"halted by security: {e.reason}", "ts": now_iso()})
         write_json(self._ledger_path(), ledger)
 
         attempted = [d for d in deliveries if d["status"] in ("SENT", "FAILED")]
         failed = [d for d in attempted if d["status"] == "FAILED"]
         skipped_bad = [d for d in deliveries if d["status"] == "SKIPPED" and d.get("reason") not in
                        ("dry-run", "ya enviado en este turno (idempotencia)")]
-        if attempted and len(failed) == len(attempted):
+        if halted or (attempted and len(failed) == len(attempted)):
             status = Signal.FAILED
         elif failed or skipped_bad:
             status = Signal.PARTIAL

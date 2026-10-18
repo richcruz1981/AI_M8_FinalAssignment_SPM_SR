@@ -82,6 +82,10 @@ TELEGRAM_BOT_TOKEN=xxx python scripts/telegram_chat_ids.py
 ```
 y se agrega su `chat_id` en `RECIPIENTS_YAML`.
 
+## Seguridad — agente Cerbero
+
+Cada acción de los agentes pasa por una puerta de seguridad: mensajes de Telegram (`inbound`), datos leídos de la BD (`data`), entrada y salida de la IA (`llm_in` / `llm_out`) y todo mensaje enviado (`outbound`). Cerbero bloquea, neutraliza o **detiene al agente** (HALT) y pone en cuarentena a los chats reincidentes. El log de auditoría (tabla `security_audit_log`, encadenado por hashes) se consulta en el dashboard del bot (`/app/`). Detalle: [`docs/plan/12_Seguridad_Cerbero.md`](docs/plan/12_Seguridad_Cerbero.md).
+
 ## Dashboard web (React)
 
 Portada: https://hatchvps.com/iaang01/edgarcruz/ — página original de hatch con paleta PepsiCo y, al inicio, la sección **Proyecto Final Edgar Cruz** con dos links: dashboard de uso del bot (`/app/`) y dashboard de KPIs (`/dashboard/`). La portada se arma con `scripts/build_landing.py` desde `site/original_index.html`.

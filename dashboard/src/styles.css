@@ -19,6 +19,8 @@ body { margin: 0; background: var(--page); color: var(--ink); font-family: Inter
 .top h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
 .top p { margin: 2px 0 0; opacity: .85; font-size: 13px; }
 .stamp { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 12px; opacity: .95; }
+.lastq { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28); border-radius: 8px; padding: 4px 10px; font-size: 12.5px; }
+.lastq b { font-size: 13.5px; }
 .badge { background: var(--tangelo); color: #fff; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 11px; letter-spacing: .02em; }
 
 .filters { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;

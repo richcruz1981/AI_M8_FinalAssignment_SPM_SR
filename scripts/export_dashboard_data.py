@@ -56,6 +56,10 @@ def build(as_of: dt.date | None = None) -> dict:
     settings, schema_map, thresholds, _ = load_all()
     settings = copy.deepcopy(settings)
     settings["llm"]["enabled"] = False
+    from spm_sr.cerbero import get_cerbero
+
+    guard = get_cerbero(settings, "dashboard-export")         # Cerbero revisa la lectura (gate "data")
+    guard.note("export", "dashboard_export_start", "ALLOW")
     tz = ZoneInfo("America/Mexico_City")
     as_of = as_of or dt.datetime.now(tz).date()
     state = RunState(run_date=as_of, scope=["all"], dry_run=True)
@@ -111,8 +115,12 @@ def build(as_of: dt.date | None = None) -> dict:
             })
             rec["alerts"] = en_alerts(rec)
         projects.append(rec)
+    guard.note("export", "dashboard_export_end", "ALLOW", [f"projects={len(projects)}",
+               f"flagged={len((c.get('security') or {}).get('flagged_records', []))}"])
     return {
         "generatedAt": dt.datetime.now(tz).isoformat(timespec="minutes"), "asOf": as_of.isoformat(),
+        "lastDbQuery": c.get("read_at"),
+        "security": {k: v for k, v in (c.get("security") or {}).items() if k != "flagged_records"},
         "source": "ServiceNow SPM replica (synthetic demo data) · Cronos → Thanatos",
         "dqRules": {k: {"label": EN_DQ[k], "severity": EN_SEV.get(sev, sev)} for k, sev in
                     {"DQ-01": "Alta", "DQ-02": "Media", "DQ-03": "Alta", "DQ-04": "Alta", "DQ-05": "Baja",

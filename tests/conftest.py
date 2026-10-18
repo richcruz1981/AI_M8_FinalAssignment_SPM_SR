@@ -16,6 +16,13 @@ def _clean_env(monkeypatch):
               "ADMIN_TELEGRAM_CHAT_ID", "TELEGRAM_CHAT_ID", "LLM_ENABLED", "SCOPE", "DRY_RUN", "ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN",
               "REDIRECT_TELEGRAM_CHAT_ID", "RUNS_DIR", "RECIPIENTS_FILE"):
         monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("AUDIT_FILE_LOG", "0")
+    monkeypatch.delenv("AUDIT_DB_URL", raising=False)
+    from spm_sr.cerbero import reset_cerbero
+
+    reset_cerbero()          # cada prueba con su propio Cerbero (cadena de auditoría y cuarentenas limpias)
+    yield
+    reset_cerbero()
 
 
 @pytest.fixture

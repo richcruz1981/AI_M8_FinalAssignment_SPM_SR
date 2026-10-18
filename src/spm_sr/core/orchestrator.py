@@ -14,6 +14,7 @@ from typing import Callable
 
 from pydantic import ValidationError
 
+from ..cerbero import get_cerbero
 from ..contracts import validate_contract
 from ..cronos import Cronos
 from ..thanatos import Thanatos
@@ -46,6 +47,8 @@ def run_pipeline(settings: dict, schema_map: dict, thresholds: dict, recipients:
     setup_logging(run_dir)
     log.info("Inicio corrida %s · fecha %s · alcance %s · dry_run=%s", state.run_id, as_of, state.scope, dry)
     agents = agents or ["cronos", "thanatos", "zeus"]
+    guard = get_cerbero(settings)
+    guard.note("orchestrator", "run_start", "ALLOW", [f"dry_run={dry}", f"agents={','.join(agents)}"], state.run_id)
     zeus = zeus or Zeus(settings, recipients, sleep=sleep)
 
     # 1) Cronos (o snapshot previo para depurar agentes aguas abajo)
@@ -76,6 +79,9 @@ def run_pipeline(settings: dict, schema_map: dict, thresholds: dict, recipients:
         _check(state, "C3", state.zeus, "zeus")
         write_json(run_dir / "zeus.json", state.zeus)
 
+    sec = [e.code for e in state.errors if e.code.startswith("E-SEC")]
+    guard.note("orchestrator", "run_end", "HALT" if any(c in ("E-SEC-01", "E-SEC-03") for c in sec) else "ALLOW",
+               [f"final={state.final_status().value}"] + sec, state.run_id, "HIGH" if sec else "LOW")
     write_failure_report(state, run_dir)
     write_json(run_dir / f"run_{state.run_id}.json", state.to_dict())
     log.info("Fin corrida %s · estado final %s · errores %s", state.run_id, state.final_status().value,

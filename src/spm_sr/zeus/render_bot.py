@@ -64,6 +64,14 @@ def unauthorized(chat_id: Any) -> list[str]:
     return [f"⛔ This chat is not authorized.\nShare this chat_id with the administrator: <code>{escape(str(chat_id))}</code>"]
 
 
+def blocked(quarantined: bool = False, minutes: int = 30) -> list[str]:
+    msg = ("🛡️ Request blocked by the security policy (Cerbero). Please use the menu options or type an ID "
+           "such as <code>PRJ1001002</code>.")
+    if quarantined:
+        msg += f"\nToo many blocked requests: this chat is paused for {minutes} minutes."
+    return [msg]
+
+
 def error(code: str, detail: str = "") -> list[str]:
     return [f"⚠️ I couldn't retrieve the data ({escape(code)}).\nPlease try again in a few minutes; "
             "the administrator has the technical details."]

@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError, OperationalError, SQLAlchemyError
 
+from ..cerbero import SecurityHalt, get_cerbero
 from ..core.state import RunState, Signal, make_signal
 from ..core.util import norm, now_iso, parse_date, to_float
 from .dq import HEALTH_FIELDS, dedupe, normalize_health, run_dq
@@ -131,10 +132,13 @@ class Cronos:
         started = now_iso()
         out: dict[str, Any] = {"projects": [], "status_reports": {}, "hierarchy": {}, "aux": {},
                                "data_quality": [], "source_availability": {}, "inventory": []}
+        guard = get_cerbero(self.settings)
         engine = self._connect(state)
         if engine is None:
+            guard.note(self.name, "db_connect", "ERROR", [e.code for e in state.errors_of(self.name)][-1:], None, "MEDIUM")
             out["signal"] = make_signal(Signal.FAILED, started)
             return out
+        out["read_at"] = now_iso()
         avail = out["source_availability"]
         try:
             with engine.connect() as conn:
@@ -223,6 +227,14 @@ class Cronos:
         out["data_quality"] = findings
         excluded = sum(1 for f in findings if f["excluded"])
 
+        # Cerbero (gate "data"): todo texto leído de la BD se revisa y neutraliza antes de llegar a otro agente
+        try:
+            get_cerbero(self.settings).inspect_data(out, self.name)
+        except SecurityHalt as e:
+            state.add_error("E-SEC-01", self.name, f"Cerbero detuvo la lectura: {e.reason}", blocking=True)
+            out["projects"], out["status_reports"], out["aux"] = [], {}, {}
+            out["signal"] = make_signal(Signal.FAILED, started, records_in=records_in)
+            return out
         degraded = [e for e in state.errors_of(self.name) if not e.blocking]
         if not valid:
             state.add_error("E-DATA-00", self.name, "0 proyectos válidos en el alcance", blocking=True,

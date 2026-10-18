@@ -111,11 +111,19 @@ jobs:
 
       - name: Ejecutar agentes
         shell: bash
+        env:
+          AS_OF: ${{ inputs.as_of }}
+          AUDIT_SOURCE: ${{ format('sr-{0}', github.event_name == 'schedule' && 'schedule' || 'manual') }}
+          AUDIT_FILE_LOG: "0"        # la auditoría va a la BD; no se sube como artefacto público
         run: |
           if [ "$DB_SOURCE" = "demo" ]; then unset DB_URL DATABASE_URL DATABASE_URL_LOCAL; fi
           export DB_TARGET="${DB_TARGET:-$VAR_DB_TARGET}"
           ARGS=""
-          if [ -n "${{ inputs.as_of }}" ]; then ARGS="--as-of ${{ inputs.as_of }}"; fi
+          # El input viaja por variable de entorno (no se interpola en el script) y se valida su formato
+          if [ -n "$AS_OF" ]; then
+            [[ "$AS_OF" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "::error::as_of inválido"; exit 1; }
+            ARGS="--as-of $AS_OF"
+          fi
           python main.py $ARGS
 
       - name: Cerrar túnel y borrar llave
