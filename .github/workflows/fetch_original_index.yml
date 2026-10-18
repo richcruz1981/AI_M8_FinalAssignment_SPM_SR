@@ -1,0 +1,36 @@
+name: Traer al repo la portada original del servidor (respaldo)
+
+# Copia /www/_hatch_welcome_backup.html (portada original de hatch, pública y sin secretos) a site/original_index.html
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TUNNEL_SSH_TARGET: ${{ vars.TUNNEL_SSH_TARGET }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descargar por SFTP
+        shell: bash
+        env:
+          HATCH_KEY: ${{ secrets.HATCH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$HATCH_KEY" | tr -d '\r' > ~/.ssh/hatch_key && chmod 600 ~/.ssh/hatch_key
+          printf 'get _hatch_welcome_backup.html site/original_index.html\n' | sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b - "$TUNNEL_SSH_TARGET" > /dev/null
+          rm -f ~/.ssh/hatch_key
+          if grep -Eqi 'postgres(ql)?://|BEGIN [A-Z ]*PRIVATE KEY|password=' site/original_index.html; then echo "::error::Contiene algo sensible"; exit 1; fi
+          echo "::notice::$(wc -c < site/original_index.html) bytes"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
+          git add site/original_index.html
+          git commit -m "Respaldo de la portada original de hatchvps (site/original_index.html)" || echo "sin cambios"
+          git push
