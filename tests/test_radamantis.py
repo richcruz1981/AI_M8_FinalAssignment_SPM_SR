@@ -96,3 +96,38 @@ def test_db_failure_replies_friendly_error(rad):
     res = r.handle(42, "1")
     assert res["status"] == "FAILED" and res["error"] == "E-CONN-01"
     assert "No pude obtener los datos" in bot.sent[-1][1]
+
+
+@pytest.mark.parametrize("text", ["PRJ1001002", "/estatus PRG0002", "/programa PRG0002", "pfl0001"])
+def test_id_routes_to_status(text):
+    assert parse_intent(text) == "estatus"
+
+
+def test_status_project_has_19_kpis(rad):
+    r, bot = rad
+    res = r.handle(42, "PRJ1001002")["answer"]
+    assert res["found"] and res["analyzed"]
+    txt = bot.sent[-1][1]
+    for n in ["1 Overall", "2 Cronograma", "3 Costo", "4 Recursos", "5 Alcance", "6 Avance", "7-8 Plan", "9-10 Real",
+              "11-12 Costo", "13 Esfuerzo", "14 Hitos", "15 Riesgos", "16 Issues", "17 Decisiones", "18 Acciones",
+              "19 Cambios"]:
+        assert n in txt, n
+
+
+def test_status_rollup_counts_match_inventory(rad):
+    r, _ = rad
+    res = r.handle(42, "/estatus PFL0001")["answer"]
+    assert res["found"] and res["level"] == "portafolio"
+    assert res["total"] == len(res["projects"])
+    d = res["rollup"]["distribution"]["overall"]
+    assert sum(v["n"] for v in d.values()) == res["analizados"]
+
+
+def test_status_excluded_and_not_found(rad):
+    r, bot = rad
+    res = r.handle(42, "PRJ1001062")["answer"]                  # DQ-03 en los datos sintéticos
+    assert res["found"] and not res["analyzed"] and "excluido" in res["why"]
+    r.handle(42, "PRJ9999999")
+    assert "No encontré" in bot.sent[-1][1]
+    r.handle(42, "7️⃣ Estatus por ID (proyecto / programa / portafolio)")
+    assert "Escribe el ID" in bot.sent[-1][1]

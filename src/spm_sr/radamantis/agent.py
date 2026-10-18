@@ -22,14 +22,16 @@ from zoneinfo import ZoneInfo
 from ..core.state import RunState, Signal
 from ..cronos import Cronos
 from ..thanatos import Thanatos
-from ..thanatos.queries import INTENTS, answer
+from ..thanatos.queries import INTENTS, answer, status_by_id
 from ..zeus import Zeus
 from ..zeus import render_bot
 
 log = logging.getLogger("spm_sr.radamantis")
 
+_ID_RX = r"\b(PRJ|PRG|PFL)\d{3,}\b"
 _PATTERNS = [
     ("menu", r"^/?(start|menu|ayuda|help)\b"),
+    ("estatus", r"^/(estatus|status|proyecto|kpi)\b|^7\b|^7️⃣|estatus por id"),
     ("total", r"^/total\b|^1\b|^1️⃣|\btotal\b"),
     ("categorias", r"^/categor|^2\b|^2️⃣|categor|estado|abiert|cerrad"),
     ("regiones", r"^/region|^3\b|^3️⃣|regi[oó]n"),
@@ -42,6 +44,8 @@ _PATTERNS = [
 def parse_intent(text: str | None) -> str | None:
     t = (text or "").strip().lower()
     t = re.sub(r"@\w+", "", t)  # /total@MiBot
+    if re.search(_ID_RX, t, re.IGNORECASE):           # un ID manda sobre cualquier otra palabra (p. ej. /programa PRG0002)
+        return "estatus"
     for intent, rx in _PATTERNS:
         if re.search(rx, t):
             return intent
@@ -104,7 +108,10 @@ class Radamantis:
             msgs = render_bot.welcome(user_name) if intent == "menu" else render_bot.not_understood()
             result.update(status="OK", deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard()))
             return result
-        assert intent in INTENTS
+        if intent == "estatus" and not re.search(_ID_RX, text or "", re.IGNORECASE):
+            result.update(status="OK", deliveries=self.zeus.reply(chat, render_bot.ask_id(), render_bot.keyboard()))
+            return result
+        assert intent in INTENTS or intent == "estatus"
         cronos_out, thanatos_out, when, errors = self._data()
         if cronos_out["signal"]["status"] == Signal.FAILED.value:
             err = next((e for e in errors if e.blocking), None)
@@ -112,9 +119,13 @@ class Radamantis:
             result.update(status="FAILED", error=code,
                           deliveries=self.zeus.reply(chat, render_bot.error(code, detail), render_bot.keyboard()))
             return result
-        res = answer(intent, cronos_out, thanatos_out)
-        result.update(status="OK", answer=res,
-                      deliveries=self.zeus.reply(chat, render_bot.render(res, when), render_bot.keyboard()))
+        if intent == "estatus":
+            res = status_by_id(text or "", cronos_out, thanatos_out)
+            msgs = render_bot.render_status(res, when)
+        else:
+            res = answer(intent, cronos_out, thanatos_out)
+            msgs = render_bot.render(res, when)
+        result.update(status="OK", answer=res, deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard()))
         result["latency_s"] = round(time.monotonic() - started, 2)
         log.info("Petición %s de %s respondida en %ss", intent, chat, result["latency_s"])
         return result
