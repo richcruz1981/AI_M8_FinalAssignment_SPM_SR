@@ -47,16 +47,9 @@ jobs:
       LLM_ENABLED: ${{ vars.LLM_ENABLED || 'true' }}
       SCOPE: ${{ inputs.scope || vars.SCOPE || 'all' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.DRY_RUN || 'true' }}
-      SMTP_HOST: ${{ secrets.SMTP_HOST }}
-      SMTP_PORT: ${{ secrets.SMTP_PORT }}
-      SMTP_USER: ${{ secrets.SMTP_USER }}
-      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-      SMTP_FROM: ${{ secrets.SMTP_FROM }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAM_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
       ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID || secrets.TELEGRAM_CHAT_ID || secrets.TELEGRAM_ID }}
-      REDIRECT_ALL_TO: ${{ secrets.REDIRECT_ALL_TO }}
       REDIRECT_TELEGRAM_CHAT_ID: ${{ secrets.REDIRECT_TELEGRAM_CHAT_ID }}
       RECIPIENTS_YAML: ${{ secrets.RECIPIENTS_YAML }}
     steps:

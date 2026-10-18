@@ -90,9 +90,7 @@ def load_settings(path: str | Path = "config/settings.yaml") -> dict[str, Any]:
         s["llm"]["model"] = env["LLM_MODEL"]
     if env.get("LLM_ENABLED"):
         s["llm"]["enabled"] = _bool(env["LLM_ENABLED"])
-    for key, env_keys in (("admin_email", ("ADMIN_EMAIL",)),
-                          ("admin_telegram_chat_id", ("ADMIN_TELEGRAM_CHAT_ID", "TELEGRAM_CHAT_ID", "TELEGRAM_ID")),
-                          ("redirect_all_to", ("REDIRECT_ALL_TO",)),
+    for key, env_keys in (("admin_telegram_chat_id", ("ADMIN_TELEGRAM_CHAT_ID", "TELEGRAM_CHAT_ID", "TELEGRAM_ID")),
                           ("redirect_telegram_chat_id", ("REDIRECT_TELEGRAM_CHAT_ID",))):
         val = next((env[k] for k in env_keys if env.get(k)), None)
         if val:
@@ -121,7 +119,7 @@ def load_all(settings_path: str | Path = "config/settings.yaml") -> tuple[dict, 
 
 
 SECRET_ALIASES = {"TELEGRAM_BOT_TOKEN": ("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")}
-SECRET_ENV_KEYS = ("DB_URL", "DATABASE_URL", "DATABASE_URL_LOCAL", "DB_PASSWORD", "SMTP_PASSWORD",
+SECRET_ENV_KEYS = ("DB_URL", "DATABASE_URL", "DATABASE_URL_LOCAL", "DB_PASSWORD",
                    "TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN", "ANTHROPIC_API_KEY")
 
 

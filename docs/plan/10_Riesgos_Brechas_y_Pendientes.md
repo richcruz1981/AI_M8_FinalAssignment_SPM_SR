@@ -1,5 +1,8 @@
 # 10 · Riesgos, Brechas y Pendientes
 
+
+> **Actualización 2026-10-18:** requisito 4.ii (correo diario) pasa a **Brecha** por decisión del usuario (sin SMTP). Telegram cubre la notificación diaria.
+
 ## Conclusión
 El riesgo principal no es técnico: es que **los semáforos calculados con umbrales supuestos se lean como verdad oficial**. Segundo riesgo: el alcance de 3 agentes no cubre 2 de los 5 entregables del contexto general.
 

@@ -1,5 +1,8 @@
 # 06 · M3 — Agente "Zeus" (Comunicador)
 
+
+> **Actualización 2026-10-18:** el canal de correo se retiró por falta de servidor SMTP. Zeus opera solo con Telegram y el mensaje lleva el detalle de KPIs (se divide en partes si excede el límite).
+
 ## Conclusión
 Zeus envía **un mensaje por destinatario y canal por día**, con el alcance que le corresponde (PM: sus proyectos; PgM: su programa; PfM: su portafolio). Enviar uno por proyecto saturaría a PgM/PfM.
 

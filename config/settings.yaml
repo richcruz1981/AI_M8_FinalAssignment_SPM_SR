@@ -20,13 +20,12 @@ llm:
 
 notifications:
   dry_run: true                       # env: DRY_RUN (true/false). true = no envía, guarda en outbox
-  email_enabled: true
+  # Canal único: Telegram (correo retirado 2026-10-18 por falta de SMTP)
   telegram_enabled: true
+  telegram_min_interval_s: 1.1        # ritmo de envío (Telegram limita ~1 msg/s por chat)
   telegram_include_costs: false       # privacidad: costos solo por correo
-  admin_email: ""                     # env: ADMIN_EMAIL
   admin_telegram_chat_id: ""          # env: ADMIN_TELEGRAM_CHAT_ID
-  redirect_all_to: ""                 # env: REDIRECT_ALL_TO (pruebas: todos los correos a un buzón)
-  redirect_telegram_chat_id: ""       # env: REDIRECT_TELEGRAM_CHAT_ID
+  redirect_telegram_chat_id: ""       # env: REDIRECT_TELEGRAM_CHAT_ID (pruebas: todo llega a este chat)
 
 runs_dir: "runs"                      # env: RUNS_DIR
 recipients_file: "config/recipients.yaml"  # env: RECIPIENTS_FILE

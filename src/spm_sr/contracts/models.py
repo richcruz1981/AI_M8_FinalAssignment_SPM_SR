@@ -69,7 +69,7 @@ class ThanatosOutput(_Open):
 
 class Delivery(_Open):
     recipient: str
-    channel: Literal["email", "telegram"]
+    channel: Literal["telegram"]
     status: Literal["SENT", "FAILED", "SKIPPED"]
     attempt: int = 0
     message_id: str | None = None

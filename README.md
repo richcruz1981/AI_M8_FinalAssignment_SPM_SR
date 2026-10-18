@@ -1,9 +1,9 @@
 # SR multi-agente para ServiceNow SPM — Cronos · Thanatos · Zeus
 
-Proceso autónomo que lee la réplica de ServiceNow SPM, calcula los KPIs estándar del Status Report (19 indicadores en 3 niveles: Salud, Desempeño, Control) y los envía diario por correo y Telegram al PM, PgM y PfM.
+Proceso autónomo que lee la réplica de ServiceNow SPM, calcula los KPIs estándar del Status Report (19 indicadores en 3 niveles: Salud, Desempeño, Control) y los envía diario por Telegram al PM, PgM y PfM (el correo se retiró el 2026-10-18: no hay servidor SMTP).
 
 ```
-Scheduler ─► Cronos (lector) ──C1──► Thanatos (analista) ──C2──► Zeus (comunicador) ─► Correo / Telegram
+Scheduler ─► Cronos (lector) ──C1──► Thanatos (analista) ──C2──► Zeus (comunicador) ─► Telegram
                  │ FAILED ─────────────────────────────────────► Zeus: solo reporte de fallas al Admin
 ```
 
@@ -11,7 +11,7 @@ Scheduler ─► Cronos (lector) ──C1──► Thanatos (analista) ──C2�
 |---|---|---|
 | **Cronos** | Conecta (3 reintentos), lee tablas núcleo + auxiliares, aplica reglas de calidad DQ-01…09, guarda snapshot, emite `COMPLETED/PARTIAL/FAILED` y reporte de fallas | No |
 | **Thanatos** | Calcula semáforos (Schedule, Cost, Resources, Scope, Overall), compara **calculado vs declarado** por el PM, KPIs 6–19, roll-up Programa/Portafolio sin promediar colores | Solo narrativa, con verificación de cifras |
-| **Zeus** | 1 mensaje por destinatario/canal/día, idempotente, reintentos, dry-run | No |
+| **Zeus** | 1 mensaje de Telegram por destinatario/día (se divide si excede 4,096 caracteres), idempotente, reintentos, ritmo ~1 msg/s, dry-run | No |
 
 Plan completo de implementación: [`docs/plan/`](docs/plan/00_README_Indice.md).
 
@@ -54,13 +54,11 @@ Dos workflows en *Actions*:
 | Secret | Uso |
 |---|---|
 | `DATABASE_URL` | URL de la BD del curso (o `DB_URL` para otra réplica; tiene prioridad) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Correo |
 | `TELEGRAM_TOKEN` | Token del bot (@BotFather) |
 | `TELEGRAM_CHAT_ID` (o `TELEGRAM_ID`) | Tu chat_id: recibe el reporte de fallas |
 | `RECIPIENTS_YAML` | Contenido de `config/recipients.yaml` con los `chat_id` reales |
-| `ADMIN_EMAIL` | Correo para el reporte de fallas |
 | `ANTHROPIC_API_KEY` | Narrativa con LLM (sin ella: plantilla) |
-| `REDIRECT_ALL_TO`, `REDIRECT_TELEGRAM_CHAT_ID` | Pruebas: manda todo a tu buzón/chat |
+| `REDIRECT_TELEGRAM_CHAT_ID` | Pruebas: todos los mensajes llegan a tu chat, indicando el destinatario original |
 
 | Variable | Uso |
 |---|---|
@@ -117,6 +115,7 @@ docs/plan/         plan de implementación modular
 ```
 
 ## Limitaciones conocidas
+- **Sin correo:** el requisito 4.ii (correo diario al PM) quedó fuera por falta de SMTP; Telegram lleva el detalle completo.
 - Avance esperado **lineal**: subestima proyectos con curva S.
 - Umbrales y mapeo OOB son **supuestos** hasta validar con la réplica y la PMO.
 - La regla de Scope "cambio aprobado sin re-línea base" no es calculable con campos OOB.

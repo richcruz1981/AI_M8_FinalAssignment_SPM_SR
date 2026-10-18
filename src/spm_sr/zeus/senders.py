@@ -1,10 +1,7 @@
-"""Canales de envío. Credenciales solo por variables de entorno."""
+"""Canal de envío Telegram (el correo se retiró el 2026-10-18). Credenciales solo por variables de entorno."""
 from __future__ import annotations
 
-import smtplib
-import ssl
 import time
-from email.message import EmailMessage
 
 import requests
 
@@ -14,40 +11,6 @@ from ..core.config import redact, secret
 class SendError(Exception):
     def __init__(self, msg: str):
         super().__init__(redact(msg))
-
-
-class EmailSender:
-    def __init__(self):
-        self.host = secret("SMTP_HOST")
-        self.port = int(secret("SMTP_PORT") or 587)
-        self.user = secret("SMTP_USER")
-        self.password = secret("SMTP_PASSWORD")
-        self.sender = secret("SMTP_FROM") or self.user
-
-    @property
-    def configured(self) -> bool:
-        return bool(self.host and self.sender)
-
-    def send(self, to: str, subject: str, html: str, text: str) -> str:
-        msg = EmailMessage()
-        msg["Subject"], msg["From"], msg["To"] = subject, self.sender, to
-        msg.set_content(text)
-        msg.add_alternative(html, subtype="html")
-        try:
-            if self.port == 465:
-                with smtplib.SMTP_SSL(self.host, self.port, context=ssl.create_default_context(), timeout=30) as s:
-                    if self.user:
-                        s.login(self.user, self.password)
-                    s.send_message(msg)
-            else:
-                with smtplib.SMTP(self.host, self.port, timeout=30) as s:
-                    s.starttls(context=ssl.create_default_context())
-                    if self.user:
-                        s.login(self.user, self.password)
-                    s.send_message(msg)
-        except (smtplib.SMTPException, OSError) as e:
-            raise SendError(f"SMTP: {e}") from e
-        return msg.get("Message-ID") or "smtp-ok"
 
 
 class TelegramSender:

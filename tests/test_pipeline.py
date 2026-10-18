@@ -104,51 +104,66 @@ def test_aux_table_missing_is_partial(cfg):
     assert r["health"]["scope"]["calculated"] == "DATO_FALTANTE"               # no Verde por omisión
 
 
-class FakeEmail:
+class FakeTelegram:
     configured = True
 
     def __init__(self, fail=False):
         self.sent, self.fail = [], fail
 
-    def send(self, to, subject, html, text):
-        if self.fail:
-            raise SendError("smtp caído")
-        self.sent.append(to)
-        return f"id-{len(self.sent)}"
-
-
-class FakeTelegram:
-    configured = True
-
-    def __init__(self):
-        self.sent = []
-
     def send(self, chat_id, text):
+        if self.fail:
+            raise SendError("telegram caído")
         assert len(text) <= 4096
         self.sent.append(chat_id)
-        return "tg"
+        return f"tg-{len(self.sent)}"
+
+
+RECIPS = {"recipients": [{"email": "ana.pm@example.com", "telegram_chat_id": "111", "channels": ["telegram"]},
+                         {"email": "sofia.pgm@example.com", "telegram_chat_id": "222", "channels": ["telegram"]}]}
 
 
 def test_real_send_idempotent_and_skips_missing_chat(cfg):
-    settings, _, _, recipients, _ = cfg
-    em, tg = FakeEmail(), FakeTelegram()
-    z = Zeus(settings, recipients, email_sender=em, telegram_sender=tg, sleep=no_sleep)
+    settings = cfg[0]
+    tg = FakeTelegram()
+    z = Zeus(settings, RECIPS, telegram_sender=tg, sleep=no_sleep)
     st = _run(cfg, dry_run=False, zeus=z)
     sent = [d for d in st.zeus["deliveries"] if d["status"] == "SENT"]
-    assert len(em.sent) == 5 and len(sent) == 5
-    assert any(d["status"] == "SKIPPED" and "sin destino telegram" in d["reason"] for d in st.zeus["deliveries"])
+    assert {d["target"] for d in sent} == {"111", "222"}
+    assert any(d["status"] == "SKIPPED" and d["reason"] == "sin destino telegram" for d in st.zeus["deliveries"])
+    n = len(tg.sent)
     st2 = _run(cfg, dry_run=False, zeus=z)                                       # misma fecha
-    assert len(em.sent) == 5                                                     # 0 duplicados
-    assert all(d["status"] == "SKIPPED" for d in st2.zeus["deliveries"] if d["channel"] == "email")
+    assert len(tg.sent) == n                                                     # 0 duplicados
+    assert all(d["reason"] == "ya enviado hoy (idempotencia)" for d in st2.zeus["deliveries"] if d["target"] in ("111", "222"))
+
+
+def test_redirect_sends_everything_to_one_chat_with_original_recipient(cfg):
+    settings = cfg[0]
+    settings["notifications"]["redirect_telegram_chat_id"] = "999"
+    tg = FakeTelegram()
+    z = Zeus(settings, {}, telegram_sender=tg, sleep=no_sleep)
+    st = _run(cfg, dry_run=False, zeus=z)
+    assert tg.sent and set(tg.sent) == {"999"}
+    outbox = Path(settings["runs_dir"]) / AS_OF.isoformat() / "outbox"
+    msg = json.loads(next(outbox.glob("*telegram.json")).read_text())["messages"][0]
+    assert "Destinatario original" in msg
 
 
 def test_send_failure_retries_and_fails(cfg):
-    settings, _, _, recipients, _ = cfg
-    settings["notifications"]["telegram_enabled"] = False
-    z = Zeus(settings, recipients, email_sender=FakeEmail(fail=True), telegram_sender=FakeTelegram(), sleep=no_sleep)
+    z = Zeus(cfg[0], RECIPS, telegram_sender=FakeTelegram(fail=True), sleep=no_sleep)
     st = _run(cfg, dry_run=False, zeus=z)
     assert st.zeus["signal"]["status"] == "FAILED"
     assert all(d["attempt"] == 3 for d in st.zeus["deliveries"] if d["status"] == "FAILED")
+
+
+def test_long_message_is_split():
+    import datetime as dt
+    from spm_sr.zeus import render
+    rep = {"number": "PRJ1", "name": "x" * 50, "alerts": ["a"] * 3, "sr_missing": False, "sr_stale": False,
+           "health": {k: {"calculated": "Rojo", "declared": "Verde"} for k in ("overall", "schedule", "cost", "resources", "scope")},
+           "performance": {"schedule": {"percent_complete": 10.0, "expected_pct": 50.0, "gap_pp": -40.0}, "cost": {"cpi": 0.8}},
+           "control": {}}
+    msgs = render.telegram({"roles": ["PM"], "name": "Ana"}, [rep] * 80, [], [], dt.date(2026, 10, 18), True, None)
+    assert len(msgs) > 1 and all(len(m) <= 4096 for m in msgs)
 
 
 def test_snapshot_replay(cfg):

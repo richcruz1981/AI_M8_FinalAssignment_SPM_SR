@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PATTERNS = {
     "Llave Anthropic": re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"),
     "Token Telegram": re.compile(r"\b\d{8,10}:AA[A-Za-z0-9_-]{30,}"),
+    "Llave privada SSH": re.compile("-----BEGIN " + "(?:OPENSSH|RSA|EC|DSA) PRIVATE KEY-----"),
     "Clave en URL de BD": re.compile(r"postgres(?:ql)?(?:\+\w+)?://[^:/\s]+:(?!CLAVE@|clave@|\*\*\*@|password@)[^@\s]+@"),
 }
 
