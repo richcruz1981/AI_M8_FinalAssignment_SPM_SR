@@ -38,7 +38,12 @@ jobs:
       DB_SOURCE: ${{ vars.DB_SOURCE || 'demo' }}
       DB_URL: ${{ secrets.DB_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DB_TARGET: ${{ vars.DB_TARGET || 'server' }}
+      VAR_DB_TARGET: ${{ vars.DB_TARGET || 'server' }}
+      # Túnel SSH desde el runner (DB_SOURCE=real): llave en el secret HATCH_KEY, destino en la variable
+      # TUNNEL_SSH_TARGET (usuario@ip). La llave NUNCA va como archivo en el repo.
+      HAS_HATCH_KEY: ${{ secrets.HATCH_KEY != '' }}
+      TUNNEL_SSH_TARGET: ${{ vars.TUNNEL_SSH_TARGET }}
+      TUNNEL_REMOTE_PORT: ${{ vars.TUNNEL_REMOTE_PORT || '56432' }}
       LLM_ENABLED: ${{ vars.LLM_ENABLED || 'true' }}
       SCOPE: ${{ inputs.scope || vars.SCOPE || 'all' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.DRY_RUN || 'true' }}
@@ -65,6 +70,28 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      - name: Abrir túnel SSH a la BD del curso (DB_SOURCE=real + secret HATCH_KEY)
+        if: env.DB_SOURCE == 'real' && env.HAS_HATCH_KEY == 'true'
+        shell: bash
+        env:
+          HATCH_KEY: ${{ secrets.HATCH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TUNNEL_SSH_TARGET" ]; then echo "::error::Define la variable TUNNEL_SSH_TARGET (usuario@ip)"; exit 1; fi
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Falta el secret DATABASE_URL"; exit 1; fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$HATCH_KEY" | tr -d '\r' > ~/.ssh/hatch_key
+          chmod 600 ~/.ssh/hatch_key
+          ssh -fN -o StrictHostKeyChecking=accept-new -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+              -i ~/.ssh/hatch_key -L "15432:127.0.0.1:${TUNNEL_REMOTE_PORT}" "$TUNNEL_SSH_TARGET"
+          for i in $(seq 1 20); do (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null && break; sleep 1; done
+          (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null || { echo "::error::El túnel no abrió el puerto 15432"; exit 1; }
+          URL=$(python -c "import os; from sqlalchemy.engine import make_url; print(make_url(os.environ['DATABASE_URL']).set(host='127.0.0.1', port=15432).render_as_string(hide_password=False))")
+          echo "::add-mask::$URL"
+          echo "DATABASE_URL_LOCAL=$URL" >> "$GITHUB_ENV"
+          echo "DB_TARGET=local" >> "$GITHUB_ENV"
+          echo "Túnel abierto: 127.0.0.1:15432 -> servidor del curso"
+
       - name: BD demo sintética (DB_SOURCE=demo)
         if: env.DB_SOURCE == 'demo'
         run: python scripts/seed_demo_db.py
@@ -87,9 +114,17 @@ jobs:
         shell: bash
         run: |
           if [ "$DB_SOURCE" = "demo" ]; then unset DB_URL DATABASE_URL DATABASE_URL_LOCAL; fi
+          export DB_TARGET="${DB_TARGET:-$VAR_DB_TARGET}"
           ARGS=""
           if [ -n "${{ inputs.as_of }}" ]; then ARGS="--as-of ${{ inputs.as_of }}"; fi
           python main.py $ARGS
+
+      - name: Cerrar túnel y borrar llave
+        if: always()
+        shell: bash
+        run: |
+          pkill -f "ssh -fN" 2>/dev/null || true
+          rm -f ~/.ssh/hatch_key
 
       - name: Guardar bitácora de envíos
         if: always()
