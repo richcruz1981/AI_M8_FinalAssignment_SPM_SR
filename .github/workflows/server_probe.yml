@@ -21,28 +21,18 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$HATCH_KEY" | tr -d '\r' > ~/.ssh/hatch_key && chmod 600 ~/.ssh/hatch_key
 
-      - name: Diagnóstico (solo lectura)
+      - name: Diagnóstico SFTP (solo lectura)
         shell: bash
         run: |
           set +e
-          ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=20 -i ~/.ssh/hatch_key "$TUNNEL_SSH_TARGET" 'bash -s' > probe.txt 2>&1 <<'EOS'
-          echo "== identidad"; whoami; hostname; uname -sr
-          echo "== shell"; echo "$SHELL"; echo "HOME=$HOME"; pwd
-          echo "== contenido de HOME"; ls -la ~ | head -30
-          echo "== python"; command -v python3 && python3 --version; python3 -c "import venv, ensurepip; print('venv OK')" 2>&1 | tail -1
-          echo "== pip"; python3 -m pip --version 2>&1 | tail -1
-          echo "== herramientas"; for t in git curl screen tmux nohup crontab systemctl docker; do printf '%s: ' $t; command -v $t || echo NO; done
-          echo "== systemd --user"; systemctl --user is-system-running 2>&1 | head -1
-          echo "== crontab"; crontab -l 2>&1 | head -5
-          echo "== salida a Telegram"; curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 https://api.telegram.org/ || echo FALLO
-          echo "== salida a PyPI"; curl -s -o /dev/null -w "%{http_code}\n" --max-time 10 https://pypi.org/simple/ || echo FALLO
-          echo "== BD"; getent hosts alumnos-pgbouncer || echo "alumnos-pgbouncer NO resuelve"; (exec 3<>/dev/tcp/alumnos-pgbouncer/6432) 2>/dev/null && echo "6432 alcanzable" || echo "6432 NO alcanzable"
-          (exec 3<>/dev/tcp/127.0.0.1/56432) 2>/dev/null && echo "127.0.0.1:56432 alcanzable" || echo "127.0.0.1:56432 NO alcanzable"
-          echo "== disco"; df -h ~ 2>&1 | tail -1
-          echo "== procesos propios"; ps -u "$(whoami)" -o pid,etime,cmd 2>&1 | head -15
+          cat > batch.txt <<'EOS'
+          pwd
+          ls -la
+          ls -la *
           EOS
-          echo "ssh_exit=$?" >> probe.txt
-          { echo '```'; sed -E 's/(postgres(ql)?:\/\/[^:]+:)[^@]+@/\1***@/g' probe.txt; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          sftp -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=20 -i ~/.ssh/hatch_key -b batch.txt "$TUNNEL_SSH_TARGET" > probe.txt 2>&1
+          echo "sftp_exit=$?" >> probe.txt
+          { echo '```'; head -c 60000 probe.txt; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Borrar llave
         if: always()
