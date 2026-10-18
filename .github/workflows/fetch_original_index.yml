@@ -23,6 +23,7 @@ jobs:
           set -euo pipefail
           install -m 700 -d ~/.ssh
           printf '%s\n' "$HATCH_KEY" | tr -d '\r' > ~/.ssh/hatch_key && chmod 600 ~/.ssh/hatch_key
+          mkdir -p site
           printf 'get _hatch_welcome_backup.html site/original_index.html\n' | sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b - "$TUNNEL_SSH_TARGET" > /dev/null
           rm -f ~/.ssh/hatch_key
           if grep -Eqi 'postgres(ql)?://|BEGIN [A-Z ]*PRIVATE KEY|password=' site/original_index.html; then echo "::error::Contiene algo sensible"; exit 1; fi
