@@ -19,7 +19,10 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+_HERE = Path(__file__).resolve().parent
+# En el servidor del curso el paquete va comprimido (spm_sr.zip): el servidor ejecuta CADA .py que se sube,
+# así que bot.py es el único .py publicado. En local se usa src/.
+sys.path.insert(0, str(_HERE / "spm_sr.zip") if (_HERE / "spm_sr.zip").exists() else str(_HERE / "src"))
 
 try:
     from dotenv import load_dotenv
