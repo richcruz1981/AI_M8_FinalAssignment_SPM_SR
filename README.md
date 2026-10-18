@@ -82,6 +82,19 @@ TELEGRAM_BOT_TOKEN=xxx python scripts/telegram_chat_ids.py
 ```
 y se agrega su `chat_id` en `RECIPIENTS_YAML`.
 
+## Dashboard web (React)
+
+Sitio: https://hatchvps.com/iaang01/edgarcruz/ — interfaz en inglés, paleta PepsiCo, 19 KPIs en gráficas.
+
+| Pieza | Detalle |
+|---|---|
+| Datos | `scripts/export_dashboard_data.py` corre Cronos → Thanatos (sin LLM) y genera `data/kpis.json` |
+| Front | `dashboard/` — Vite 5 + React 18 + Recharts; filtros (portafolio, programa, región, categoría, salud, PM, búsqueda, activos/todos) y toggle Bars / Columns / Donut |
+| Publicación | `.github/workflows/publish_dashboard.yml`: túnel SSH → export → build → SFTP a `/www` (cada hora + manual). No sube `.py` |
+| Respaldo | La portada original del servidor se guarda una vez como `_hatch_welcome_backup.html` |
+
+Local: `python scripts/export_dashboard_data.py && cd dashboard && npm ci && npm run dev`.
+
 ## Datos de prueba en PostgreSQL
 
 `scripts/generate_spm_dummy.py` genera **datos sintéticos** (ficticios, semilla fija) para las 12 tablas tipo SPM, cada una con 100–200 registros: proyectos sanos, atrasados, con sobrecosto, vencidos y con fallas de calidad de datos, más SR declarados con ~20 % de "optimismo".

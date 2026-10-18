@@ -14,3 +14,8 @@ backups/
 .hatch_key
 CREDENCIALES*.txt
 Tokens*.txt
+
+# Dashboard web
+dashboard/node_modules/
+dashboard/dist/
+dashboard/public/data/kpis.json

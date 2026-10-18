@@ -1,0 +1,141 @@
+name: Publicar dashboard web (React) en hatchvps
+
+# Cronos → Thanatos exportan los KPIs a un JSON estático; Vite compila el dashboard React; SFTP lo publica en /www.
+# No sube ningún .py (el servidor reiniciaría app.py / el bot) ni toca app.py, spm_sr.zip, config ni .env.
+on:
+  schedule:
+    - cron: "7 * * * *"   # cada hora
+  workflow_dispatch:
+    inputs:
+      as_of:
+        description: "Fecha de corte YYYY-MM-DD (vacío = hoy)"
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-dashboard
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: America/Mexico_City
+      SITE: https://hatchvps.com/iaang01/edgarcruz
+      TUNNEL_SSH_TARGET: ${{ vars.TUNNEL_SSH_TARGET }}
+      TUNNEL_REMOTE_PORT: ${{ vars.TUNNEL_REMOTE_PORT || '56432' }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      LLM_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Instalar dependencias Python
+        run: pip install -r requirements.txt
+
+      - name: Preparar llave y abrir túnel a la BD del curso
+        shell: bash
+        env:
+          HATCH_KEY: ${{ secrets.HATCH_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$HATCH_KEY" ] || { echo "::error::Falta el secret HATCH_KEY"; exit 1; }
+          [ -n "$DATABASE_URL" ] || { echo "::error::Falta el secret DATABASE_URL"; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$HATCH_KEY" | tr -d '\r' > ~/.ssh/hatch_key && chmod 600 ~/.ssh/hatch_key
+          ssh -fN -o StrictHostKeyChecking=accept-new -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+              -i ~/.ssh/hatch_key -L "15432:127.0.0.1:${TUNNEL_REMOTE_PORT}" "$TUNNEL_SSH_TARGET"
+          for i in $(seq 1 20); do (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null && break; sleep 1; done
+          (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null || { echo "::error::El túnel no abrió el puerto 15432"; exit 1; }
+          URL=$(python -c "import os; from sqlalchemy.engine import make_url; print(make_url(os.environ['DATABASE_URL']).set(host='127.0.0.1', port=15432).render_as_string(hide_password=False))")
+          echo "::add-mask::$URL"
+          echo "DATABASE_URL_LOCAL=$URL" >> "$GITHUB_ENV"
+          echo "DB_TARGET=local" >> "$GITHUB_ENV"
+
+      - name: Exportar KPIs (Cronos → Thanatos) a JSON
+        shell: bash
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.as_of }}" ]; then ARGS="--as-of ${{ inputs.as_of }}"; fi
+          python scripts/export_dashboard_data.py --out dashboard/public/data/kpis.json $ARGS | tee -a "$GITHUB_STEP_SUMMARY"
+          # El JSON es público: verificar que no lleve credenciales
+          if grep -Eqi 'postgres(ql)?(\+psycopg)?://|bot[0-9]{6,}:|sk-ant-|BEGIN [A-Z ]*PRIVATE KEY' dashboard/public/data/kpis.json; then
+            echo "::error::El JSON contiene algo que parece credencial; publicación cancelada"; exit 1
+          fi
+
+      - name: Compilar dashboard (Vite + React)
+        working-directory: dashboard
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          find dist -type f | sort
+
+      - name: Respaldar la portada original (una sola vez)
+        shell: bash
+        run: |
+          set +e
+          printf 'get _hatch_welcome_backup.html have_backup.html\n' | sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b - "$TUNNEL_SSH_TARGET" > /dev/null 2>&1
+          if [ -s have_backup.html ]; then echo "Respaldo ya existe en el servidor"; exit 0; fi
+          printf 'get index.html original_index.html\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" > /dev/null 2>&1
+          if [ -s original_index.html ] && ! grep -q 'Portfolio Health Dashboard' original_index.html; then
+            printf 'put original_index.html _hatch_welcome_backup.html\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" > /dev/null
+            echo "Portada original respaldada como _hatch_welcome_backup.html" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No había index.html original que respaldar"
+          fi
+
+      - name: Subir dashboard por SFTP (assets → datos → index.html al final)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dashboard/dist
+          if find . -name '*.py' | grep -q .; then echo "::error::dist contiene .py"; exit 1; fi
+          {
+            echo '-mkdir assets'
+            echo '-mkdir data'
+            find assets -type f | sed 's#.*#put "&" "&"#'
+            echo 'put "data/kpis.json" "data/kpis.json"'
+            find . -maxdepth 1 -type f ! -name index.html | sed 's#^\./##; s#.*#put "&" "&"#'
+            echo 'put "index.html" "index.html"'
+          } > ../../up.txt
+          sftp -i ~/.ssh/hatch_key -o StrictHostKeyChecking=accept-new -b ../../up.txt "$TUNNEL_SSH_TARGET" > /dev/null
+          echo "Subidos $(grep -c '^put' ../../up.txt) archivos"
+          # Borrar assets de compilaciones anteriores
+          printf 'ls -1 assets\n' | sftp -i ~/.ssh/hatch_key -b - "$TUNNEL_SSH_TARGET" 2>/dev/null | grep -v '^sftp>' | xargs -n1 basename 2>/dev/null | sort > ../../remote.txt || true
+          ls assets | sort > ../../local.txt
+          comm -23 ../../remote.txt ../../local.txt | sed 's#.*#-rm "assets/&"#' > ../../rm.txt
+          if [ -s ../../rm.txt ]; then sftp -i ~/.ssh/hatch_key -b ../../rm.txt "$TUNNEL_SSH_TARGET" > /dev/null 2>&1 || true; echo "Assets viejos borrados: $(wc -l < ../../rm.txt)"; fi
+
+      - name: Verificar sitio publicado
+        shell: bash
+        run: |
+          sleep 5
+          {
+            echo "### Verificación"
+            for p in "/" "/index.html" "/data/kpis.json" "/.env" "/app/"; do
+              echo "- GET $SITE$p -> HTTP $(curl -s -o /dev/null -w '%{http_code}' "$SITE$p")"
+            done
+            curl -s "$SITE/" | grep -o '<title>[^<]*</title>' | sed 's/^/- /'
+            curl -s "$SITE/data/kpis.json" | python -c "import json,sys; d=json.load(sys.stdin); print(f\"- JSON: {len(d['projects'])} proyectos, asOf {d['asOf']}, generado {d['generatedAt']}\")"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/data/kpis.json"); [ "$code" = "200" ]
+
+      - name: Cerrar túnel y borrar llave
+        if: always()
+        shell: bash
+        run: |
+          pkill -f "ssh -fN" 2>/dev/null || true
+          rm -f ~/.ssh/hatch_key
