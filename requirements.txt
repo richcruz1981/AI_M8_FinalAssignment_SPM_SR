@@ -4,6 +4,7 @@ PyYAML>=6.0
 requests>=2.31
 python-dotenv>=1.0
 anthropic>=0.40
+matplotlib>=3.7       # gráficas del bot (ya instalado en el servidor del curso)
 # Drivers de BD (instala el de tu motor):
 psycopg[binary]>=3.1   # PostgreSQL (BD del curso)
 PyMySQL>=1.1           # MySQL / MariaDB

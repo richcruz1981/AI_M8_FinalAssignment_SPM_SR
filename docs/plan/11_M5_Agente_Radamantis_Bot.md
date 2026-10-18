@@ -23,6 +23,19 @@ flowchart LR
 | 5 | `/portafolios` | Igual, por portafolio | `pm_project.primary_portfolio` |
 | 6 | `/calidad` | Proyectos con problemas de datos agrupados por regla DQ-01…DQ-10 | Reglas DQ de Cronos |
 
+## Gráficas (una por opción, `zeus/charts.py`)
+| Opción | Forma | Por qué |
+|---|---|---|
+| 1 Total | Barras por estado de salud | Comparar magnitudes de 4 estados |
+| 2 Categoría | Barras ordenadas, un tono | Magnitud por categoría, con % |
+| 3 Región | Barras apiladas activos / cerrados | Total y composición en un solo eje |
+| 4-5 Programa / Portafolio | Barras apiladas por salud (top 15) | Dónde se concentran proyectos y riesgo |
+| 6 Calidad | Barras por regla, color = severidad | Qué falta y qué tan grave |
+| 7 Proyecto | Matriz calculado vs declarado + barras de % (avance real/esperado, presupuesto y esfuerzo consumidos) | Ver optimismo y desvío en una imagen |
+| 7 Programa / Portafolio | Barras 100 % apiladas por KPI | Distribución de cada KPI de salud |
+
+Paleta de estado fija (bueno/advertencia/crítico + gris "sin dato"); cada gráfica lleva leyenda y el valor escrito (mitigación del bajo contraste del amarillo, validada con el validador del skill dataviz). Si la gráfica falla, el texto ya llegó.
+
 ## Decisiones
 | Tema | Decisión | Etiqueta |
 |---|---|---|

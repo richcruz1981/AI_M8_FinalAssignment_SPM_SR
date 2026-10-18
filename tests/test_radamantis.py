@@ -24,6 +24,11 @@ class FakeBot:
         self.sent.append((str(chat_id), text, reply_markup))
         return str(len(self.sent))
 
+    def send_photo(self, chat_id, png, caption="", reply_markup=None):
+        assert png[:8] == b"\x89PNG\r\n\x1a\n" and len(caption) <= 1024
+        self.photos = getattr(self, "photos", []) + [(str(chat_id), len(png), reply_markup)]
+        return "p"
+
 
 @pytest.fixture(scope="module")
 def dummy_db(tmp_path_factory):
@@ -76,7 +81,7 @@ def test_six_options_answer_with_real_counts(rad):
     assert out["programas"]["con_proyectos"] + out["programas"]["sin_proyectos"] == 100
     rules = {x["rule"] for x in out["calidad"]["rows"]}
     assert {"DQ-01", "DQ-03", "DQ-04", "DQ-10"} <= rules
-    assert all(m[2] and "keyboard" in m[2] for m in bot.sent[-1:])           # menú visible tras responder
+    assert len(bot.photos) == 6 and all(p[2] and "keyboard" in p[2] for p in bot.photos)   # 1 gráfica por opción + menú
 
 
 def test_cache_avoids_rereading_db(rad, monkeypatch):
@@ -131,3 +136,16 @@ def test_status_excluded_and_not_found(rad):
     assert "No encontré" in bot.sent[-1][1]
     r.handle(42, "7️⃣ Estatus por ID (proyecto / programa / portafolio)")
     assert "Escribe el ID" in bot.sent[-1][1]
+
+
+@pytest.mark.parametrize("code", ["PRJ1001002", "PRG0002", "PFL0001"])
+def test_status_sends_chart(rad, code):
+    r, bot = rad
+    res = r.handle(42, code)
+    assert res["chart"] is True and bot.photos[-1][1] > 10_000
+
+
+def test_no_chart_for_excluded_project_still_answers_text(rad):
+    r, bot = rad
+    res = r.handle(42, "PRJ1001062")
+    assert res["chart"] is False and "Sin KPIs" in bot.sent[-1][1] and bot.sent[-1][2]   # menú va con el texto

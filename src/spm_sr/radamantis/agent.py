@@ -25,6 +25,7 @@ from ..thanatos import Thanatos
 from ..thanatos.queries import INTENTS, answer, status_by_id
 from ..zeus import Zeus
 from ..zeus import render_bot
+from ..zeus.charts import render_chart
 
 log = logging.getLogger("spm_sr.radamantis")
 
@@ -125,7 +126,10 @@ class Radamantis:
         else:
             res = answer(intent, cronos_out, thanatos_out)
             msgs = render_bot.render(res, when)
-        result.update(status="OK", answer=res, deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard()))
+        png = render_chart(res)
+        caption = f"📊 Gráfica · datos leídos {when}" if png else ""
+        result.update(status="OK", answer=res, chart=bool(png),
+                      deliveries=self.zeus.reply(chat, msgs, render_bot.keyboard(), photo=png, caption=caption))
         result["latency_s"] = round(time.monotonic() - started, 2)
         log.info("Petición %s de %s respondida en %ss", intent, chat, result["latency_s"])
         return result

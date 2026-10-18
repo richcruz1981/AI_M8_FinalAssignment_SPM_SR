@@ -42,6 +42,27 @@ class TelegramSender:
         return str(data["result"]["message_id"])
 
 
+    def send_photo(self, chat_id: str, png: bytes, caption: str = "", reply_markup: dict | None = None) -> str:
+        import json
+
+        data = {"chat_id": str(chat_id), "caption": caption[:1000], "parse_mode": "HTML"}
+        if reply_markup:
+            data["reply_markup"] = json.dumps(reply_markup)
+        try:
+            resp = requests.post(self.API.replace("sendMessage", "sendPhoto").format(token=self.token), data=data,
+                                 files={"photo": ("grafica.png", png, "image/png")}, timeout=60)
+        except requests.RequestException as e:
+            raise SendError(f"Telegram sendPhoto: {e}") from e
+        if resp.status_code == 429:
+            wait = resp.json().get("parameters", {}).get("retry_after", 5)
+            self.sleep(min(int(wait), 60))
+            raise SendError(f"Telegram 429, retry_after={wait}")
+        out = resp.json() if resp.content else {}
+        if not out.get("ok"):
+            raise SendError(f"Telegram sendPhoto {resp.status_code}: {out.get('description')}")
+        return str(out["result"]["message_id"])
+
+
 class TelegramBotAPI(TelegramSender):
     """Recepción de mensajes (long polling) y registro de comandos para el bot Radamantis."""
 

@@ -107,11 +107,13 @@ class Zeus:
         return (str(chat) if chat else None), True, bool(redirect)
 
     # ------------------------------------------------------------------ respuesta bajo demanda (bot)
-    def reply(self, chat_id: str, messages: list[str], reply_markup: dict | None = None) -> list[dict[str, Any]]:
-        """Responde en el chat que hizo la petición (usado por Radamantis). Sin ledger: cada petición se responde."""
+    def reply(self, chat_id: str, messages: list[str], reply_markup: dict | None = None,
+              photo: bytes | None = None, caption: str = "") -> list[dict[str, Any]]:
+        """Responde en el chat que hizo la petición (usado por Radamantis). Sin ledger: cada petición se responde.
+        Si hay gráfica, se envía después del texto y lleva el menú; si la foto falla, el texto ya llegó."""
         out = []
         for i, part in enumerate(messages):
-            markup = reply_markup if i == len(messages) - 1 else None
+            markup = reply_markup if i == len(messages) - 1 and not photo else None
             last = None
             for attempt, wait in enumerate(self.backoff, start=1):
                 try:
@@ -132,7 +134,20 @@ class Zeus:
                 out.append({"recipient": str(chat_id), "channel": CHANNEL, "status": "FAILED",
                             "attempt": len(self.backoff), "reason": last, "ts": now_iso()})
                 log.error("Zeus no pudo responder a %s: %s", chat_id, last)
-                break
+                return out
+        if photo and hasattr(self.telegram, "send_photo"):
+            try:
+                wait_pace = self.interval - (time.monotonic() - self._last_send)
+                if wait_pace > 0 and self._last_send:
+                    self.sleep(wait_pace)
+                mid = self.telegram.send_photo(chat_id, photo, caption, reply_markup=reply_markup)
+                self._last_send = time.monotonic()
+                out.append({"recipient": str(chat_id), "channel": CHANNEL, "status": "SENT", "attempt": 1,
+                            "message_id": mid, "kind": "photo", "ts": now_iso()})
+            except SendError as e:
+                log.warning("Gráfica no enviada a %s: %s", chat_id, e)
+                out.append({"recipient": str(chat_id), "channel": CHANNEL, "status": "FAILED", "kind": "photo",
+                            "reason": str(e), "ts": now_iso()})
         return out
 
     # ------------------------------------------------------------------ modos
