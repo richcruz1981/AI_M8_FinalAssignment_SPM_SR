@@ -30,8 +30,8 @@ flowchart LR
 | Cerrados | Cronos expone `inventory` (todos los proyectos del alcance) sin cambiar el análisis diario | HECHO |
 | Seguridad | Solo responde a chats autorizados (`TELEGRAM_CHAT_ID`, `BOT_ALLOWED_CHAT_IDS`, `RECIPIENTS_YAML`) | HECHO |
 | Carga a la BD | Caché de 60 s: varias consultas seguidas usan una sola lectura (límite: 8 conexiones) | HECHO |
-| Hosting | Servidor del curso (hatchvps): `bot.py` publicado por SFTP (workflow `deploy_bot.yml`) | HECHO |
+| Hosting | Servidor del curso (hatchvps). Solo `app.py` vive de forma permanente (los `.py` sueltos corren 150 s en un entorno sin librerías), así que el bot arranca **dentro de `app.py`** en un hilo; el código va en `spm_sr.zip` para que el servidor no ejecute los módulos. Publicación: workflow `deploy_bot.yml`; despertador horario: `bot_keepalive.yml` | HECHO |
 
 ## Qué falta verificar
-- Que el servidor mantenga vivo `bot.py` (no lo corte a los 150 s de "scripts").
+- Que el servidor no recicle la app con frecuencia (el despertador horario la reactiva, con hasta ~1 h de hueco).
 - Alta de chats de otros usuarios (PM/PgM/PfM) en `BOT_ALLOWED_CHAT_IDS`.

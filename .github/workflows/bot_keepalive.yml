@@ -1,0 +1,28 @@
+name: Despertar bot Radamantis
+
+# Streamlit solo ejecuta app.py cuando alguien abre la página; si el servidor reinicia la app, el bot
+# queda apagado hasta la siguiente visita. Este workflow abre la página con Chrome sin interfaz cada hora.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Abrir la app (inicia el bot si no está corriendo)
+        shell: bash
+        run: |
+          URL="https://hatchvps.com/iaang01/edgarcruz/app/"
+          google-chrome --headless=new --no-sandbox --disable-gpu --virtual-time-budget=25000 --dump-dom "$URL" > page.html 2>/dev/null || true
+          if grep -q "Estado del bot" page.html; then
+            state=$(grep -o 'escuchando\|sin token\|detenido\|creado' page.html | head -1)
+            echo "App abierta · estado del bot: ${state:-desconocido}" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "La página no terminó de renderizar en 25 s (la sesión igual dispara el arranque)" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
