@@ -70,13 +70,14 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Abrir túnel SSH a la BD del curso (DB_SOURCE=real + secret HATCH_KEY)
-        if: env.DB_SOURCE == 'real' && env.HAS_HATCH_KEY == 'true'
+      - name: Abrir túnel SSH a la BD del curso (DB_SOURCE=real)
+        if: env.DB_SOURCE == 'real'
         shell: bash
         env:
           HATCH_KEY: ${{ secrets.HATCH_KEY }}
         run: |
           set -euo pipefail
+          if [ "$HAS_HATCH_KEY" != "true" ]; then echo "::error::DB_SOURCE=real requiere el secret HATCH_KEY (contenido de .hatch_key)"; exit 1; fi
           if [ -z "$TUNNEL_SSH_TARGET" ]; then echo "::error::Define la variable TUNNEL_SSH_TARGET (usuario@ip)"; exit 1; fi
           if [ -z "$DATABASE_URL" ]; then echo "::error::Falta el secret DATABASE_URL"; exit 1; fi
           install -m 700 -d ~/.ssh
