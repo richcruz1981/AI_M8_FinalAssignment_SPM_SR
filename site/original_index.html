@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edgar · hatch co.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde:#76bc21; --verde-claro:#9FD064; --verde-osc:#5f9a1a;
+    --negro:#161716; --negro-2:#1d1e1d; --panel:#232523; --panel-2:#2b2d2b;
+    --texto:#eef1ec; --muted:#9aa39a; --linea:#333632;
+    --font:"Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--negro);color:var(--texto);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
+  img{max-width:100%}
+  code{font-family:var(--mono);font-size:.85em;background:#000;color:#b9ef86;padding:.14em .45em;border-radius:.35rem;border:1px solid var(--linea)}
+  a{color:var(--verde-claro);text-underline-offset:2px}
+
+  .top{background:var(--negro-2);border-bottom:1px solid var(--linea)}
+  .top .in{max-width:760px;margin:0 auto;padding:1rem clamp(1rem,4vw,1.75rem);display:flex;align-items:center;justify-content:space-between;gap:1rem}
+  .chip{display:inline-flex}
+  .chip img{height:30px;width:auto;display:block}
+  .cortesia{font-size:.7rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;text-align:right;line-height:1.5}
+  .cortesia b{color:#fff}
+
+  .wrap{max-width:760px;margin:0 auto;padding:clamp(1.5rem,5vw,3rem) clamp(1rem,4vw,1.75rem)}
+
+  .hero{margin-bottom:2.5rem}
+  .eyebrow{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--verde);font-weight:700;margin-bottom:.8rem}
+  h1{font-size:clamp(2.1rem,7vw,3.2rem);line-height:1.03;letter-spacing:-.02em;font-weight:800;text-wrap:balance}
+  h1 .em{color:var(--verde)}
+  .hero .sub{color:var(--muted);font-size:1.06rem;margin-top:.9rem;max-width:52ch}
+  .url{display:inline-block;margin-top:1.2rem;background:#000;border:1px solid var(--linea);color:#fff;font-family:var(--mono);font-size:.95rem;padding:.7rem 1.1rem;border-radius:.6rem;word-break:break-all}
+  .url b{color:var(--verde-claro)}
+
+  h2{font-size:1.3rem;font-weight:700;letter-spacing:-.01em;margin:2.6rem 0 1rem;display:flex;align-items:center;gap:.65rem}
+  h2::before{content:"";width:10px;height:22px;background:var(--verde);border-radius:2px;flex:none}
+
+  ol.steps{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:.85rem;margin:.2rem 0}
+  ol.steps li{counter-increment:s;display:grid;grid-template-columns:1.9rem 1fr;gap:.85rem;align-items:start}
+  ol.steps li::before{content:counter(s);font-weight:700;font-size:.85rem;width:1.9rem;height:1.9rem;display:grid;place-items:center;border-radius:50%;background:rgba(118,188,33,.15);color:var(--verde-claro);border:1.5px solid var(--verde-osc)}
+
+  .cards{display:grid;gap:.8rem;grid-template-columns:1fr}
+  @media(min-width:560px){.cards{grid-template-columns:1fr 1fr}}
+  .card{background:var(--panel);border:1px solid var(--linea);border-radius:.8rem;padding:1.1rem 1.2rem}
+  .card .t{font-weight:700;margin-bottom:.25rem;display:flex;align-items:center;gap:.5rem}
+  .card .t .dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--verde);box-shadow:0 0 0 3px rgba(118,188,33,.2)}
+  .card p{color:var(--muted);font-size:.92rem;margin:0}
+
+  .conn{background:#000;border:1px solid var(--linea);color:var(--texto);border-radius:.9rem;padding:1.3rem 1.5rem;font-family:var(--mono);font-size:.9rem}
+  .conn dl{display:grid;grid-template-columns:auto 1fr;gap:.45rem 1.25rem}
+  .conn dt{color:var(--muted)}
+  .conn dd b{color:var(--verde-claro)}
+  .fill{color:var(--verde-claro)}
+
+  .nota{background:rgba(118,188,33,.08);border:1px solid var(--verde-osc);border-left-width:4px;border-radius:.5rem;padding:.9rem 1.15rem;margin-top:1.2rem;font-size:.95rem;color:#cfe0bd}
+  .nota b{color:var(--verde-claro)}
+  .aviso{background:rgba(231,180,87,.10);border:1px solid #b8862f;border-left-width:4px;border-radius:.5rem;padding:1rem 1.2rem;margin:1.6rem 0;font-size:.95rem;color:#f0d9a8}
+  .aviso b{color:#ffd98a}
+
+  footer{background:#000;border-top:1px solid var(--linea);margin-top:3rem}
+  footer .in{max-width:760px;margin:0 auto;padding:2.4rem clamp(1rem,4vw,1.75rem)}
+  .marca{display:flex;align-items:baseline;gap:.5rem;font-weight:800;font-size:1.6rem;color:#fff;letter-spacing:-.01em}
+  .marca .br{color:var(--verde);font-weight:700}
+  .marca .co{font-size:.8rem;color:var(--muted);font-weight:600}
+  .slogan{color:#fff;font-size:1.15rem;font-weight:600;margin-top:.7rem}
+  .slogan .g{color:var(--verde)}
+  .servicios{color:var(--muted);font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;margin-top:.5rem}
+  .contacto{margin-top:1.3rem;display:flex;flex-wrap:wrap;gap:.6rem 1.6rem;font-size:.94rem}
+  .contacto a,.contacto span{color:var(--texto);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
+  .contacto a:hover{color:var(--verde-claro)}
+  .redes{margin-top:1.1rem;display:flex;gap:.6rem;flex-wrap:wrap}
+  .redes a{font-size:.8rem;font-weight:600;color:var(--texto);text-decoration:none;border:1px solid var(--linea);border-radius:2rem;padding:.35rem .9rem}
+  .redes a:hover{border-color:var(--verde);color:var(--verde-claro)}
+  .fin{margin-top:1.6rem;padding-top:1.1rem;border-top:1px solid var(--linea);font-size:.82rem;color:var(--muted)}
+  .fin b{color:var(--verde-claro)}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="in">
+      <span class="chip"><img src="data:image/png;base64,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" alt="hatch co."></span>
+      <div class="cortesia">Hosting cortesía de<br><b>hatch co.</b></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section class="hero">
+      <p class="eyebrow">Tu espacio de trabajo</p>
+      <h1>Hola, <span class="em">Edgar</span> 👋</h1>
+      <p class="sub">Aquí vivirá tu proyecto. Publica dashboards, apps y agentes en Python — esta guía te dice cómo, por si las dudas.</p>
+      <div class="url">https://hatchvps.com/<b>iaang01/edgarcruz</b>/</div>
+    </section>
+
+    <div class="aviso">⚠️ <b>Importante — respalda tu trabajo.</b> Al terminar el curso (<b>15/12/2026</b>) se eliminará <b>todo</b>: tus archivos, tu base de datos y tus accesos. Descarga lo que quieras conservar antes de esa fecha.</div>
+
+    <h2>Cómo publicar tu proyecto</h2>
+    <p style="color:var(--muted);margin-bottom:1rem">Recibiste un <b>kit</b> (una carpeta con tu llave de acceso ya conectada). Con eso:</p>
+    <ol class="steps">
+      <li><span>Copia <b>todos</b> los archivos del kit dentro de la carpeta de tu proyecto (traen tu llave, tu conexión y las plantillas del front y del bot).</span></li>
+      <li><span>Para publicar, en la terminal corre <code>./deploy.sh</code> — o dile a <b>Claude Code</b>: <i>"despliega mi proyecto"</i>.</span></li>
+      <li><span>Espera unos segundos y abre tu URL de arriba. ¡Listo!</span></li>
+    </ol>
+    <div class="nota"><b>Tip:</b> el archivo <code>CLAUDE.md</code> ya le explica a tu Claude Code todas las reglas del servidor. No tienes que configurar nada.</div>
+    <div class="nota">📖 <b>Guía completa:</b> <a href="https://hatchvps.com/guia"><b>hatchvps.com/guia</b></a> — el paso a paso detallado y qué hacer si algo falla. <b>Guárdala:</b> esta página que estás leyendo desaparece en cuanto publiques tu proyecto, la guía no.</div>
+
+    <h2>Qué puedes subir</h2>
+    <div class="cards">
+      <div class="card"><div class="t"><span class="dot"></span>Sitios estáticos</div><p>HTML/CSS/JS o el build de React/Vite. Se publican tal cual.</p></div>
+      <div class="card"><div class="t"><span class="dot"></span>Scripts de Python</div><p>Sube un <code>.py</code> y el servidor lo ejecuta solo. Sus salidas (HTML, gráficas) se publican.</p></div>
+      <div class="card"><div class="t"><span class="dot"></span>Apps en vivo</div><p>Streamlit, Gradio, Flask o FastAPI. Nómbrala <code>app.py</code> y queda viva en <code>/app</code>.</p></div>
+      <div class="card"><div class="t"><span class="dot"></span>Agentes con IA</div><p>Usa tus claves en el <code>.env</code>. Ya vienen instalados anthropic y openai.</p></div>
+    </div>
+
+    <h2>Tu base de datos</h2>
+    <p style="color:var(--muted);margin-bottom:.8rem">Tienes una base PostgreSQL propia y privada. Explórala desde el navegador:</p>
+    <div class="conn">
+      <dl>
+        <dt>Panel web</dt><dd><a href="https://hatchvps.com/db/?pgsql=alumnos-db" style="color:var(--verde-claro)"><b>hatchvps.com/db</b></a> <span style="color:var(--muted)">(PostgreSQL)</span></dd>
+        <dt>Motor</dt><dd>PostgreSQL</dd>
+        <dt>Servidor</dt><dd>alumnos-db</dd>
+        <dt>Usuario / clave / base</dt><dd class="fill">en tu archivo .env</dd>
+      </dl>
+    </div>
+    <div class="nota"><b>Desde tu computadora:</b> corre <code>./tunel.sh</code> (viene en tu kit) y déjalo abierto; ahí tu agente ya puede leer y escribir en tu base. <b>Tu app publicada</b> se conecta sola, sin túnel. Y los datos a mano los ves en <code>hatchvps.com/db</code>.</div>
+
+    <h2>Recordatorios</h2>
+    <ol class="steps">
+      <li><span>No borres el archivo <code>.hatch_key</code> — es tu llave de acceso.</span></li>
+      <li><span>No subas tu kit a un repositorio público (contiene tu llave y tu <code>.env</code>).</span></li>
+      <li><span>Tu espacio: 500 MB de archivos y 200 MB de base de datos.</span></li>
+    </ol>
+  </div>
+
+  <footer>
+    <div class="in">
+      <img src="data:image/png;base64,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" alt="hatch co." style="height:34px;width:auto;display:block;margin:0 0 6px;">
+      <div class="slogan"><span class="g">Potenciamos</span> marcas.</div>
+      <div class="servicios">Digital Strategy · Design &amp; Packaging · Ad &amp; Com · Data.world</div>
+      <div class="contacto">
+        <a href="https://hatch.mx" target="_blank" rel="noopener">🌐 hatch.mx</a>
+        <a href="tel:+525553638000">📞 55 5363 8000</a>
+        <span>📍 CDMX, México</span>
+      </div>
+      <div class="redes">
+        <a href="https://instagram.com/hatchcomx" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.linkedin.com/company/hatchmx/" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://facebook.com/hatchcomx" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://x.com/hatchcomx" target="_blank" rel="noopener">X</a>
+      </div>
+      <div class="fin">Este hosting para alumnos es una cortesía de <b>hatch co.</b> — ¿Quieres potenciar tu marca? Escríbenos en <b>hatch.mx</b> 🚀</div>
+    </div>
+  </footer>
+</body>
+</html>
