@@ -13,13 +13,14 @@ permissions:
 jobs:
   wake:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 4
     steps:
       - name: Abrir la app (inicia el bot si no está corriendo)
         shell: bash
         run: |
           URL="https://hatchvps.com/iaang01/edgarcruz/app/"
-          google-chrome --headless=new --no-sandbox --disable-gpu --virtual-time-budget=25000 --dump-dom "$URL" > page.html 2>/dev/null || true
+          # Streamlit mantiene abierto el websocket: se corta a los 60 s (la sesión ya disparó el arranque del bot)
+          timeout 60 google-chrome --headless=new --no-sandbox --disable-gpu --virtual-time-budget=25000 --dump-dom "$URL" > page.html 2>/dev/null || true
           if grep -q "Estado del bot" page.html; then
             state=$(grep -o 'escuchando\|sin token\|detenido\|creado' page.html | head -1)
             echo "App abierta · estado del bot: ${state:-desconocido}" | tee -a "$GITHUB_STEP_SUMMARY"
