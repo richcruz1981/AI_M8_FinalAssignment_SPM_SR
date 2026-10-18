@@ -56,7 +56,7 @@ Dos workflows en *Actions*:
 | `DATABASE_URL` | URL de la BD del curso (o `DB_URL` para otra réplica; tiene prioridad) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Correo |
 | `TELEGRAM_TOKEN` | Token del bot (@BotFather) |
-| `TELEGRAM_ID` | Tu chat_id: recibe el reporte de fallas |
+| `TELEGRAM_CHAT_ID` (o `TELEGRAM_ID`) | Tu chat_id: recibe el reporte de fallas |
 | `RECIPIENTS_YAML` | Contenido de `config/recipients.yaml` con los `chat_id` reales |
 | `ADMIN_EMAIL` | Correo para el reporte de fallas |
 | `ANTHROPIC_API_KEY` | Narrativa con LLM (sin ella: plantilla) |

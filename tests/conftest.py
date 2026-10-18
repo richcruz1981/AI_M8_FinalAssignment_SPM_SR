@@ -13,7 +13,7 @@ AS_OF = dt.date(2026, 10, 19)
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     for k in ("DB_URL", "DATABASE_URL", "DATABASE_URL_LOCAL", "DB_TARGET", "TELEGRAM_TOKEN", "TELEGRAM_ID",
-              "ADMIN_TELEGRAM_CHAT_ID", "LLM_ENABLED", "SCOPE", "DRY_RUN", "ANTHROPIC_API_KEY", "SMTP_HOST", "TELEGRAM_BOT_TOKEN",
+              "ADMIN_TELEGRAM_CHAT_ID", "TELEGRAM_CHAT_ID", "LLM_ENABLED", "SCOPE", "DRY_RUN", "ANTHROPIC_API_KEY", "SMTP_HOST", "TELEGRAM_BOT_TOKEN",
               "REDIRECT_ALL_TO", "REDIRECT_TELEGRAM_CHAT_ID", "RUNS_DIR", "RECIPIENTS_FILE"):
         monkeypatch.delenv(k, raising=False)
 

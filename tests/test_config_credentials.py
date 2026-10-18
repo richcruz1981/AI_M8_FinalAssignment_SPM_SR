@@ -37,3 +37,10 @@ def test_postgres_url_gets_installed_driver():
     out = C._pg_driver_url("postgres://u:" + "p@h:6432/db")
     assert out.startswith(("postgresql+psycopg://", "postgresql+psycopg2://", "postgresql://"))
     assert out.endswith("u:p@h:6432/db")
+
+
+def test_telegram_chat_id_alias(monkeypatch):
+    for k in ("ADMIN_TELEGRAM_CHAT_ID", "TELEGRAM_ID"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "777")
+    assert C.load_settings()["notifications"]["admin_telegram_chat_id"] == "777"
