@@ -20,3 +20,4 @@ dashboard/node_modules/
 dashboard/dist/
 dashboard/public/data/kpis.json
 build/
+docs/architecture/SPM_SR_Ecosystem_Description.html
