@@ -64,6 +64,7 @@ class Radamantis:
                  tz: str = "America/Mexico_City"):
         self.settings = copy.deepcopy(settings)
         self.settings.setdefault("llm", {})["enabled"] = False      # análisis bajo demanda sin LLM
+        self.settings.setdefault("guidance", {})["per_recipient"] = False   # la guía se genera por respuesta
         self.schema_map, self.thresholds = schema_map, thresholds
         self.zeus = zeus
         self.allowed = {str(x) for x in (allowed_chat_ids or set()) if str(x).strip()}

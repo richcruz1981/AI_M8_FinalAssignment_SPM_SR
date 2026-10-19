@@ -185,7 +185,9 @@ class Thanatos:
         else:
             status = Signal.COMPLETED
         plan = self._recipients(reports, rollups, hier)
-        self._guides(plan, reports, c.get("data_quality", []), guard, state)
+        # Guías por destinatario solo en la corrida del SR (el bot y el export generan la suya bajo demanda)
+        if (self.settings.get("guidance") or {}).get("per_recipient", True):
+            self._guides(plan, reports, c.get("data_quality", []), guard, state)
         out = {"signal": make_signal(status, started, records_in=len(c["projects"]), records_ok=len(reports),
                                      records_excluded=calc_errors),
                "project_reports": reports, "rollups": rollups, "quality_summary": quality,

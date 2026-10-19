@@ -205,3 +205,14 @@ def test_every_kpi_answer_ends_with_a_guide(rad):
         assert last.rfind("how to correct") > last.rfind("Source:"), t
     # sin llave de IA en pruebas: playbook por reglas, etiquetado como tal
     assert "rule-based" in bot.sent[-1][1]
+
+
+def test_bot_does_not_generate_sr_guides_per_recipient(rad, monkeypatch):
+    """El bot no debe disparar las ~69 guías del SR en cada lectura (costo y latencia)."""
+    import spm_sr.thanatos.agent as T
+    called = []
+    monkeypatch.setattr(T.Thanatos, "_guides", lambda *a, **k: called.append(1))
+    r, _ = rad
+    r._cache = None
+    r.handle(42, "1")
+    assert called == []

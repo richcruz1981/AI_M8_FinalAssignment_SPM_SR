@@ -56,6 +56,7 @@ def build(as_of: dt.date | None = None) -> dict:
     settings, schema_map, thresholds, _ = load_all()
     settings = copy.deepcopy(settings)
     settings["llm"]["enabled"] = False
+    settings.setdefault("guidance", {})["per_recipient"] = False
     from spm_sr.cerbero import get_cerbero
 
     guard = get_cerbero(settings, "dashboard-export")         # Cerbero revisa la lectura (gate "data")
