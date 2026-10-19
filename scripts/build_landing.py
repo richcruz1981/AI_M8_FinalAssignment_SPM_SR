@@ -57,18 +57,20 @@ SECTION_HTML = f"""  <section class="pf" id="proyecto-final" aria-labelledby="pf
       <p class="eyebrow">ServiceNow SPM · Status Reports con agentes de IA</p>
       <h2 id="pf-title">Proyecto Final Edgar Cruz</h2>
       <p class="lead">Cronos lee la base, Thanatos calcula los 19 KPIs del Status Report y Zeus comunica por Telegram;
-        Radamantis atiende las consultas del bot en tiempo real.</p>
+        Radamantis atiende las consultas del bot en tiempo real y Cerbero, el agente de seguridad, revisa cada acción
+        (bloquea inyecciones, neutraliza datos maliciosos y detiene a cualquier agente comprometido) y deja un log
+        de auditoría.</p>
       <div class="links">
         <a class="lk" href="{SITE}/app/">
           <span class="k">Bot de Telegram</span>
           <span class="t">Dashboard de uso del bot</span>
-          <span class="d">Estado de Radamantis, peticiones atendidas y resumen de las consultas.</span>
+          <span class="d">Estado de Radamantis, peticiones atendidas, resumen de las consultas y log de auditoría de Cerbero.</span>
           <span class="go">Abrir →</span>
         </a>
         <a class="lk" href="{SITE}/dashboard/">
           <span class="k">KPIs del portafolio</span>
           <span class="t">Portfolio Health Dashboard</span>
-          <span class="d">Los 19 KPIs en gráficas, con filtros y cambio de tipo de gráfica.</span>
+          <span class="d">Los 19 KPIs en gráficas, con filtros, cambio de tipo de gráfica y descarga en PDF.</span>
           <span class="go">Abrir →</span>
         </a>
       </div>

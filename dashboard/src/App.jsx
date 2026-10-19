@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { exportDashboardPdf } from "./pdf.js";
 import { UI, SERIES, STATUS, STATUS_ORDER, SEVERITY, CMP, KPI_HEALTH } from "./theme.js";
 import {
   applyFilters, countBy, healthByGroup, healthDistribution, kpiSummary, byGroupFinance, controlTotals,
@@ -171,6 +172,8 @@ export default function App() {
   const [f, setF] = useState(EMPTY);
   const [mode, setMode] = useState(() => { try { return localStorage.getItem("chartMode") || "bars"; } catch { return "bars"; } });
   const [pick, setPick] = useState(null);
+  const appRef = useRef(null);
+  const [pdfState, setPdfState] = useState("idle");      // idle | busy | error
   useEffect(() => { try { localStorage.setItem("chartMode", mode); } catch { /* storage unavailable */ } }, [mode]);
 
   const projects = data?.projects || [];
@@ -192,7 +195,7 @@ export default function App() {
   const healthColor = (n) => HEALTH_COLORS[n] || SERIES[0];
 
   return (
-    <div className="app">
+    <div className="app" ref={appRef}>
       <header className="top">
         <div className="brand">
           <div className="logo"><span /><span /><span /></div>
@@ -225,6 +228,19 @@ export default function App() {
         <div className="fld"><span>Chart type</span>
           <div className="seg">{MODES.map(([m, l]) => <button key={m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>{l}</button>)}</div></div>
         <button className="reset" onClick={() => setF(EMPTY)}>Reset</button>
+        <button className="pdf-btn" data-pdf-hide disabled={pdfState === "busy"} title="Download what is on screen as PDF"
+          onClick={async () => {
+            setPdfState("busy");
+            try {
+              const label = (active.length ? active.map(([k, v]) => `${k}: ${v}`).join(" · ") : "All data")
+                + (f.search ? ` · search: ${f.search}` : "");
+              await exportDashboardPdf(appRef.current, {
+                filtersLabel: `${label} · ${f.activeOnly ? "Active" : "All"} projects · ${mode} charts` });
+              setPdfState("idle");
+            } catch (e) { console.error(e); setPdfState("error"); }
+          }}>
+          {pdfState === "busy" ? "Preparing PDF…" : pdfState === "error" ? "PDF failed · retry" : "⬇ Download PDF"}
+        </button>
       </div>
       {active.length > 0 && (
         <div className="active-f">Filtered by: {active.map(([key, v]) => (
