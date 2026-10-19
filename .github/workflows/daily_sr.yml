@@ -158,10 +158,14 @@ jobs:
               llm = [n for n in nar if n.get("source") == "llm"]
               ru = [x.get("narrative", {}) for x in t.get("rollups", [])]
               ru_llm = [n for n in ru if n.get("source") == "llm"]
-              sample = (ru_llm[0]["text"] if ru_llm else "").replace("\n", " ")[:220]
+              sample = (ru_llm[0]["text"] if ru_llm else "").replace("\n", " ")[:160]
+              gd = [rc.get("guide") or {} for rc in t.get("recipients_plan", [])]
+              g_llm = [g for g in gd if g.get("source") == "llm"]
+              g_sample = (g_llm[0]["lines"][0] if g_llm and g_llm[0].get("lines") else "")[:160]
               print(f"::notice title=SR {os.environ.get('SR_SLOT')}::BD={os.environ.get('DB_SOURCE')} · dry_run={os.environ.get('DRY_RUN')} · "
                     f"Cronos={c.get('status')} ({c.get('records_in')} proyectos) · entregas {st} · "
-                    f"IA {len(llm)}/{len(nar)} narrativas (roll-ups enviados por Telegram: {len(ru_llm)}/{len(ru)}) · ejemplo: {sample}")
+                    f"IA {len(llm)}/{len(nar)} narrativas (roll-ups enviados por Telegram: {len(ru_llm)}/{len(ru)}) · ejemplo: {sample} · "
+                    f"guías IA {len(g_llm)}/{len(gd)} · ejemplo guía: {g_sample}")
           PY
           f=$(ls runs/*/failure_report.md 2>/dev/null | tail -1)
           if [ -n "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; fi

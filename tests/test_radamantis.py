@@ -193,3 +193,15 @@ def test_bot_records_last_db_read(rad):
     assert r.last_db_read is None
     r.handle(42, "1")
     assert r.last_db_read and "CDMX" in r.last_db_read
+
+
+def test_every_kpi_answer_ends_with_a_guide(rad):
+    r, bot = rad
+    for t in ["1", "2", "3", "4", "5", "6", "PRJ1001002", "PRG0002", "PFL0001"]:
+        n = len(bot.sent)
+        r.handle(42, t)
+        last = bot.sent[-1][1]
+        assert "how to correct" in last, t                     # guía al final del último mensaje
+        assert last.rfind("how to correct") > last.rfind("Source:"), t
+    # sin llave de IA en pruebas: playbook por reglas, etiquetado como tal
+    assert "rule-based" in bot.sent[-1][1]

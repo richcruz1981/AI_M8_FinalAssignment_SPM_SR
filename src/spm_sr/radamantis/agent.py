@@ -23,9 +23,10 @@ from ..cerbero import get_cerbero
 from ..core.state import RunState, Signal
 from ..cronos import Cronos
 from ..thanatos import Thanatos
+from ..thanatos.guidance import Advisor, situations_from_dq, situations_from_reports
 from ..thanatos.queries import INTENTS, answer, status_by_id
 from ..zeus import Zeus
-from ..zeus import render_bot
+from ..zeus import i18n, render_bot
 from ..zeus.charts import render_chart
 
 log = logging.getLogger("spm_sr.radamantis")
@@ -76,6 +77,7 @@ class Radamantis:
         self._cache: tuple[float, dict, dict | None, str] | None = None
         self.last_db_read: str | None = None          # última consulta real a la BD (se muestra en /app/)
         self.guard = get_cerbero(self.settings, "bot")
+        self.advisor = Advisor(self.settings, guard=self.guard)     # guía "how to correct" al final de cada respuesta
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------ datos (Cronos -> Thanatos)
@@ -98,6 +100,28 @@ class Radamantis:
         if cronos_out["signal"]["status"] != Signal.FAILED.value:
             self._cache = (now, cronos_out, thanatos_out, when)
         return cronos_out, thanatos_out, when, state.errors
+
+    # ------------------------------------------------------------------ guía de corrección (IA)
+    def _guide(self, intent: str, res: dict, c: dict, t: dict | None) -> dict | None:
+        try:
+            reps = (t or {}).get("project_reports", [])
+            dq = c.get("data_quality", [])
+            if intent == "calidad":
+                return self.advisor.guide(situations_from_dq(res.get("rows", [])), "data quality", intent)
+            if intent == "estatus":
+                if not res.get("found"):
+                    return None
+                if res["level"] == "proyecto":
+                    mine = [res["report"]] if res.get("analyzed") else []
+                    pdq = [f for f in dq if f.get("project_number") == res["code"]]
+                    return self.advisor.guide(situations_from_reports(mine, pdq), f"project {res['code']}", res["code"])
+                nums = {x["number"] for x in res.get("projects", [])}
+                mine = [r for r in reps if r.get("number") in nums]
+                return self.advisor.guide(situations_from_reports(mine), f"{i18n.LEVEL.get(res['level'], res['level'])} {res['code']}", res["code"])
+            return self.advisor.guide(situations_from_reports(reps), "all active analyzed projects", intent)
+        except Exception:  # noqa: BLE001 - la guía nunca impide la respuesta
+            log.exception("No se pudo generar la guía")
+            return None
 
     # ------------------------------------------------------------------ petición
     def handle(self, chat_id: Any, text: str | None, user_name: str | None = None) -> dict[str, Any]:
@@ -142,9 +166,11 @@ class Radamantis:
             return result
         if intent == "estatus":
             res = status_by_id(text or "", cronos_out, thanatos_out)
+            res["guide"] = self._guide(intent, res, cronos_out, thanatos_out)
             msgs = render_bot.render_status(res, when)
         else:
             res = answer(intent, cronos_out, thanatos_out)
+            res["guide"] = self._guide(intent, res, cronos_out, thanatos_out)
             msgs = render_bot.render(res, when)
         png = render_chart(res)
         caption = f"📊 Chart · data read {when}" if png else ""

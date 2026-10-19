@@ -18,6 +18,15 @@ llm:
   thinking: "between_tools"           # desactiva el razonamiento extendido: evita respuestas vacías por max_tokens
   max_calls: 60                       # por corrida; cubre todos los roll-ups (PgM/PfM) del dataset del curso
 
+guidance:                             # guía "how to correct" al final de cada reporte del bot y del SR
+  enabled: true
+  llm: true                           # IA (Anthropic); sin llave o si falla -> playbook por reglas (etiquetado)
+  max_calls: 100                      # por proceso/corrida; guías iguales se reutilizan (caché por firma)
+  max_tokens: 450
+  cache_ttl_s: 3600
+  timeout_s: 25
+  workers: 4                          # llamadas en paralelo en la corrida del SR
+
 security:                             # Cerbero (agente de seguridad) — ver docs/plan/12_Seguridad_Cerbero.md
   max_message_len: 300                # mensajes de Telegram más largos se bloquean
   rate_per_min: 12                    # peticiones por chat por minuto

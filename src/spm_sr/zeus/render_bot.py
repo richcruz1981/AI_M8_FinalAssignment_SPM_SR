@@ -9,7 +9,7 @@ from html import escape
 from typing import Any
 
 from . import i18n
-from .render import ICON, LIMIT
+from .render import ICON, LIMIT, guide_block
 
 MENU_BUTTONS = [["1️⃣ Total projects", "2️⃣ By category"],
                 ["3️⃣ By region", "4️⃣ By program"],
@@ -35,7 +35,9 @@ def _foot(res: dict, when: str) -> str:
     return f"\n<i>Source: {escape(i18n.source(res.get('source_field', '')))} · data read {escape(when)}</i>"
 
 
-def _split(lines: list[str]) -> list[str]:
+def _split(lines: list[str], tail: list[str] | None = None) -> list[str]:
+    """Divide en mensajes ≤ LIMIT. `tail` (la guía) nunca se parte: va completa al final del último mensaje
+    o, si no cabe, en un mensaje propio."""
     msgs, cur = [], ""
     for ln in lines:
         if len(cur) + len(ln) + 1 > LIMIT:
@@ -43,6 +45,13 @@ def _split(lines: list[str]) -> list[str]:
             cur = ln
         else:
             cur = f"{cur}\n{ln}" if cur else ln
+    if tail:
+        block = "\n".join(tail)
+        if len(cur) + len(block) + 1 > LIMIT:
+            msgs.append(cur)
+            cur = block.lstrip("\n")
+        else:
+            cur = f"{cur}\n{block}"
     msgs.append(cur)
     return [f"{m}\n<i>({i}/{len(msgs)})</i>" for i, m in enumerate(msgs, 1)] if len(msgs) > 1 else msgs
 
@@ -128,7 +137,7 @@ def render(res: dict, when: str) -> list[str]:
     else:
         return not_understood()
     lines.append(_foot(res, when))
-    return _split(lines)
+    return _split(lines, guide_block(res.get("guide")))
 
 
 # ---------------------------------------------------------------------------------- option 7: status by ID
@@ -262,4 +271,4 @@ def render_status(res: dict, when: str) -> list[str]:
                 "Please check the ID (e.g. <code>PRJ1001002</code>, <code>PRG0002</code>, <code>PFL0001</code>)."]
     lines = _project(res) if res["level"] == "proyecto" else _rollup(res)
     lines.append(_foot(res, when))
-    return _split(lines)
+    return _split(lines, guide_block(res.get("guide")))

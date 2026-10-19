@@ -10,6 +10,7 @@ from ..core.state import RunState, Signal, make_signal
 from ..core.util import norm, now_iso
 from . import kpi_rules as K
 from .control import control_kpis
+from .guidance import Advisor, situations_from_reports
 from .narrative import Narrator, template_project, template_rollup, top_alerts
 from .rollup import rollup
 
@@ -90,6 +91,30 @@ class Thanatos:
             e["programs" if role == "PgM" else "portfolios"].append(ru["id"])
         return [e for e in plan.values() if e["projects"] or e["programs"] or e["portfolios"] or e["escalations"]]
 
+    def _guides(self, plan: list[dict], reports: list[dict], dq: list[dict], guard, state: RunState) -> None:
+        """Guía de corrección (IA) al final de cada mensaje del SR: una por destinatario, según SUS KPIs."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        advisor = Advisor(self.settings, guard=guard)
+        by_id = {r["project_id"]: r for r in reports}
+
+        def work(rc: dict) -> None:
+            mine = {pid for pid in rc["projects"] + rc["escalations"]}
+            mine |= {r["project_id"] for r in reports
+                     if r.get("program") in rc["programs"] or r.get("portfolio") in rc["portfolios"]}
+            reps = [by_id[p] for p in mine if p in by_id]
+            nums = {r["number"] for r in reps}
+            sits = situations_from_reports(reps, [f for f in dq if f.get("project_number") in nums])
+            scope = "/".join(rc["roles"]) or "Escalation"
+            rc["guide"] = advisor.guide(sits, f"{scope} status report ({len(reps)} projects)", rc.get("user_id", ""))
+
+        with ThreadPoolExecutor(max_workers=int(self.settings.get("guidance", {}).get("workers", 4))) as ex:
+            list(ex.map(work, plan))
+        for f in advisor.failures[:20]:
+            state.add_error(f.split()[0], self.name, f, severity="Baja")
+        src = [rc["guide"]["source"] for rc in plan if rc.get("guide")]
+        log.info("Guías: %s IA, %s por reglas, %s llamadas", src.count("llm"), src.count("rules"), advisor.calls)
+
     def run(self, state: RunState) -> dict[str, Any]:
         started = now_iso()
         c = state.cronos or {}
@@ -159,9 +184,11 @@ class Thanatos:
             status = Signal.PARTIAL
         else:
             status = Signal.COMPLETED
+        plan = self._recipients(reports, rollups, hier)
+        self._guides(plan, reports, c.get("data_quality", []), guard, state)
         out = {"signal": make_signal(status, started, records_in=len(c["projects"]), records_ok=len(reports),
                                      records_excluded=calc_errors),
                "project_reports": reports, "rollups": rollups, "quality_summary": quality,
-               "recipients_plan": self._recipients(reports, rollups, hier)}
+               "recipients_plan": plan}
         log.info("Thanatos %s: %s reportes, %s roll-ups", status.value, len(reports), len(rollups))
         return out
