@@ -82,6 +82,19 @@ TELEGRAM_BOT_TOKEN=xxx python scripts/telegram_chat_ids.py
 ```
 y se agrega su `chat_id` en `RECIPIENTS_YAML`.
 
+## Skills del proyecto (Claude Code)
+
+En `.claude/skills/` (se cargan solos al abrir el repo con Claude Code):
+
+| Skill | Para qué |
+|---|---|
+| `hatchvps-publicar` | Publicar y verificar bot, portada y dashboard en el servidor del curso |
+| `sr-cambio-seguro` | Cambiar textos, idioma, horario, KPIs o IA del SR y del bot con pruebas y simulacro |
+| `cerbero-revision` | Revisión semanal de seguridad con el log de Cerbero, en formato DAM |
+| `dashboard-kpi` | Agregar KPIs o gráficas al dashboard con paleta validada, capturas y prueba del PDF |
+
+Helper común: `scripts/gh_workflow.sh <workflow.yml> [-f inputs...]` lanza un workflow, espera y muestra pasos fallidos y anotaciones.
+
 ## Seguridad — agente Cerbero
 
 Cada acción de los agentes pasa por una puerta de seguridad: mensajes de Telegram (`inbound`), datos leídos de la BD (`data`), entrada y salida de la IA (`llm_in` / `llm_out`) y todo mensaje enviado (`outbound`). Cerbero bloquea, neutraliza o **detiene al agente** (HALT) y pone en cuarentena a los chats reincidentes. El log de auditoría (tabla `security_audit_log`, encadenado por hashes) se consulta en el dashboard del bot (`/app/`). Detalle: [`docs/plan/12_Seguridad_Cerbero.md`](docs/plan/12_Seguridad_Cerbero.md).
