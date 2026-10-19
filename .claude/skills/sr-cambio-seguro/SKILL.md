@@ -16,6 +16,7 @@ description: Cambiar textos, idioma, horario, KPIs o uso de IA del Status Report
 | Orden y presupuesto de llamadas a la IA | `src/spm_sr/thanatos/agent.py` (roll-ups primero) y `config/settings.yaml` → `llm.max_calls` |
 | Cálculo de KPIs 1-19 | `src/spm_sr/thanatos/kpi_rules.py`, `control.py`, `rollup.py`; umbrales en `config/thresholds.yaml` |
 | Horario / envío real / turnos | `.github/workflows/daily_sr.yml` (cron UTC; CDMX = UTC-6; `SR_SLOT` am/pm/manual) |
+| Guía "how to correct" (IA) al final de cada reporte | `src/spm_sr/thanatos/guidance.py` (`PLAYBOOK`, `SYSTEM_PROMPT`, situaciones); bloque en `zeus/render.py` → `guide_block`; config `guidance` en `settings.yaml`. Solo la corrida del SR genera guías por destinatario (`per_recipient`); bot y export no |
 | Reporte de fallas | `src/spm_sr/core/reporting.py` |
 | Reglas de seguridad | `src/spm_sr/cerbero/rules.py` (ver skill `cerbero-revision`) |
 

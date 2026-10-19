@@ -82,6 +82,10 @@ TELEGRAM_BOT_TOKEN=xxx python scripts/telegram_chat_ids.py
 ```
 y se agrega su `chat_id` en `RECIPIENTS_YAML`.
 
+## Guía de corrección con IA
+
+Cada reporte (SR por Telegram y cada respuesta del bot con KPIs) termina con **🧭 AI guide · how to correct**: las situaciones se detectan por reglas a partir de los KPIs (rojos, vencidos, optimismo del PM, riesgos altos, calidad de datos…) y la IA redacta una acción por situación con responsable y momento. A la IA solo viajan códigos, conteos e IDs; la respuesta pasa por Cerbero y por la verificación de cifras. Sin IA o si la respuesta no pasa los controles, se usa un playbook por reglas y la guía lo indica. Código: `src/spm_sr/thanatos/guidance.py`.
+
 ## Skills del proyecto (Claude Code)
 
 En `.claude/skills/` (se cargan solos al abrir el repo con Claude Code):
