@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SPM Status Report AI Ecosystem — Architecture</title>
+<style>
+  :root{--navy:#28458E;--blue:#0096D6;--tan:#EB7B30;--ink:#14213D;--ink2:#5B6475;--page:#F4F6FA;--line:#D9DFEA;
+        --cronos:#28458E;--thanatos:#0096D6;--zeus:#3D63C4;--rad:#6250D6;--ai:#0B6FAE;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:2400px;height:1600px;background:var(--page);font-family:Inter,system-ui,sans-serif;color:var(--ink);position:relative;overflow:hidden}
+  .abs{position:absolute}
+  header{left:0;top:0;width:2400px;height:170px;background:linear-gradient(110deg,#28458E 0%,#1F3A7D 58%,#0B6FAE 100%);
+         border-bottom:6px solid var(--tan);color:#fff;padding:30px 60px;display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:54px;font-weight:800;letter-spacing:-.02em}
+  header p{font-size:22px;color:#DCE6F5;margin-top:6px}
+  header .tag{text-align:right;font-size:18px;color:#BFE6FA;line-height:1.5}
+  header .tag b{display:block;color:#fff;font-size:26px}
+  .col-title{font-size:15px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--navy)}
+  .box{background:#fff;border:2px solid var(--line);border-radius:22px;box-shadow:0 4px 14px rgba(20,33,61,.06);padding:22px 24px}
+  .box h3{font-size:26px;font-weight:800;display:flex;align-items:center;gap:12px}
+  .box h3 .ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:24px;flex:none}
+  .box .sub{font-size:16px;color:var(--ink2);margin:4px 0 10px 58px;font-weight:600}
+  .box ul{list-style:none;font-size:17px;line-height:1.45}
+  .box li{padding-left:18px;position:relative}
+  .box li::before{content:"";position:absolute;left:2px;top:10px;width:7px;height:7px;border-radius:2px;background:var(--blue)}
+  .chip{display:inline-block;font-size:14px;font-weight:700;padding:3px 10px;border-radius:999px;background:#EAF0FB;color:var(--navy);margin:2px 4px 2px 0}
+  .agent{border-top:10px solid}
+  .agent h3{font-size:30px}
+  .agent .role{font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin:2px 0 10px}
+  .frame{border:4px dashed var(--tan);border-radius:30px;background:rgba(235,123,48,.04)}
+  .frame-label{background:var(--tan);color:#fff;font-weight:800;font-size:19px;padding:8px 18px;border-radius:999px;letter-spacing:.02em}
+  .gate{background:#fff;border:2px solid var(--tan);border-radius:14px;padding:10px 12px;text-align:center}
+  .gate b{display:block;font-size:19px;color:#B4561A}
+  .gate span{font-size:14px;color:var(--ink2);line-height:1.3;display:block;margin-top:2px}
+  .pill{background:#fff;border:2px solid var(--navy);color:var(--navy);font-size:15px;font-weight:700;padding:5px 12px;border-radius:999px;white-space:nowrap}
+  .pill.t{border-color:var(--tan);color:#B4561A}
+  .page-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;background:#F6F8FC;margin-top:10px}
+  .page-row .n{font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700;color:var(--blue);min-width:112px}
+  .page-row .d{font-size:16px;line-height:1.35}
+  .page-row .d b{font-size:18px}
+  .stats{left:60px;top:1405px;width:2280px;height:150px;display:grid;grid-template-columns:repeat(8,1fr);gap:16px}
+  .stat{background:#fff;border:2px solid var(--line);border-top:6px solid var(--navy);border-radius:16px;padding:14px 16px}
+  .stat b{display:block;font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  .stat span{font-size:15px;color:var(--ink2);font-weight:600;line-height:1.25;display:block;margin-top:4px}
+  .foot{left:60px;top:1568px;font-size:14px;color:var(--ink2)}
+  svg{position:absolute;left:0;top:0;pointer-events:none}
+</style>
+</head>
+<body>
+<header class="abs">
+  <div>
+    <h1>SPM Status Report AI Ecosystem</h1>
+    <p>ServiceNow SPM replica → 5 cooperating AI agents → Telegram chatbot &amp; web dashboards · 19 standard status-report KPIs</p>
+  </div>
+  <div class="tag"><b>Proyecto Final Edgar Cruz</b>System architecture · hatchvps.com/iaang01/edgarcruz</div>
+</header>
+
+<!-- column titles -->
+<div class="abs col-title" style="left:60px;top:196px">① Data &amp; orchestration</div>
+<div class="abs col-title" style="left:1640px;top:196px">③ Channels &amp; experience</div>
+
+<!-- ① DATA -->
+<div class="abs box" style="left:60px;top:230px;width:400px;height:520px">
+  <h3><span class="ic" style="background:var(--navy)">🗄</span>PostgreSQL</h3>
+  <div class="sub">ServiceNow SPM replica (course DB)</div>
+  <ul>
+    <li>pm_project · project_status</li>
+    <li>Milestones, risks, issues</li>
+    <li>Decisions, actions, change requests</li>
+    <li>Programs, portfolios, users</li>
+    <li>u_region (custom field)</li>
+    <li>Shared by the bot on the server and the scheduled runs</li>
+  </ul>
+  <div style="margin-top:16px;border:2px solid var(--tan);border-radius:14px;padding:12px 14px;background:#FFF6EF">
+    <div style="font-weight:800;font-size:18px;color:#B4561A">security_audit_log</div>
+    <div style="font-size:15px;color:var(--ink2);line-height:1.35">Hash-chained record of every agent action, written by Cerbero</div>
+  </div>
+</div>
+
+<div class="abs box" style="left:60px;top:800px;width:400px;height:430px">
+  <h3><span class="ic" style="background:#1F2937">⚙</span>GitHub Actions</h3>
+  <div class="sub">Scheduler, CI/CD &amp; secure tunnel</div>
+  <ul>
+    <li><b>Status report</b> · 07:00 &amp; 15:00 CDMX, Mon–Fri</li>
+    <li><b>Dashboard publish</b> · every hour</li>
+    <li><b>Bot deploy</b> · SFTP to the course server</li>
+    <li>SSH tunnel to the DB (secret key)</li>
+    <li>114 automated tests in CI</li>
+  </ul>
+  <div style="margin-top:12px"><span class="chip">Secrets only in GitHub</span><span class="chip">Public repo, no credentials</span></div>
+</div>
+
+<!-- ② AGENT LAYER (Cerbero frame) -->
+<div class="abs frame" style="left:520px;top:230px;width:1060px;height:1100px"></div>
+<div class="abs frame-label" style="left:548px;top:212px">② AGENT LAYER · 🛡 guarded by CERBERO on every action</div>
+
+<div class="abs box agent" style="left:560px;top:290px;width:300px;height:330px;border-top-color:var(--cronos)">
+  <div class="role" style="color:var(--cronos)">Agent 1 · Reader</div>
+  <h3>Cronos</h3>
+  <ul style="margin-top:10px">
+    <li>Connects &amp; reads projects and status reports</li>
+    <li>10 data-quality rules (DQ-01…10)</li>
+    <li>Keeps data in memory, signals done</li>
+    <li>Failure report on errors</li>
+  </ul>
+</div>
+<div class="abs box agent" style="left:900px;top:290px;width:300px;height:330px;border-top-color:var(--thanatos)">
+  <div class="role" style="color:var(--thanatos)">Agent 2 · Analyst</div>
+  <h3>Thanatos</h3>
+  <ul style="margin-top:10px">
+    <li>19 KPIs: Health 1–5, Performance 6–13, Control 14–19</li>
+    <li>Declared vs calculated health</li>
+    <li>Program &amp; portfolio roll-ups</li>
+    <li>AI narrative + corrective guide</li>
+  </ul>
+</div>
+<div class="abs box agent" style="left:1240px;top:290px;width:300px;height:330px;border-top-color:var(--zeus)">
+  <div class="role" style="color:var(--zeus)">Agent 3 · Communicator</div>
+  <h3>Zeus</h3>
+  <ul style="margin-top:10px">
+    <li>One Telegram report per PM, PgM, PfM</li>
+    <li>Charts per bot option</li>
+    <li>Idempotent per shift (am / pm)</li>
+    <li>"How to correct" guide at the end</li>
+  </ul>
+</div>
+
+<div class="abs box" style="left:560px;top:700px;width:470px;height:250px;border-top:10px solid var(--ai)">
+  <div class="role" style="font-size:16px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ai)">AI service</div>
+  <h3>Claude API (Anthropic)</h3>
+  <ul style="margin-top:10px">
+    <li>Executive narratives (program / portfolio)</li>
+    <li>Corrective-action guides per report</li>
+    <li>Receives only KPI codes, counts &amp; IDs; every figure verified</li>
+  </ul>
+</div>
+<div class="abs box agent" style="left:1100px;top:700px;width:440px;height:250px;border-top-color:var(--rad)">
+  <div class="role" style="color:var(--rad)">Agent 4 · Executor</div>
+  <h3>Radamantis</h3>
+  <ul style="margin-top:10px">
+    <li>Receives bot requests in real time</li>
+    <li>Runs Cronos → Thanatos, Zeus replies</li>
+    <li>Lives inside the web app on the server</li>
+  </ul>
+</div>
+
+<!-- gates -->
+<div class="abs" style="left:560px;top:1010px;width:980px">
+  <div style="font-size:18px;font-weight:800;color:#B4561A;margin-bottom:10px">Agent 5 · Cerbero — 5 security gates on every action</div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+    <div class="gate"><b>inbound</b><span>Bot messages: auth, rate limit, prompt &amp; SQL injection</span></div>
+    <div class="gate"><b>data</b><span>DB fields: neutralize malicious text</span></div>
+    <div class="gate"><b>llm_in</b><span>No flagged data reaches the AI</span></div>
+    <div class="gate"><b>llm_out</b><span>No links, HTML, secrets or instructions</span></div>
+    <div class="gate"><b>outbound</b><span>Every message: secrets, recipients, links</span></div>
+  </div>
+  <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+    <span class="pill t">ALLOW · SANITIZE · BLOCK</span><span class="pill t">QUARANTINE abusive chats (30 min)</span>
+    <span class="pill t">HALT a compromised agent</span><span class="pill t">Hash-chained audit log</span>
+  </div>
+</div>
+
+<!-- ③ CHANNELS -->
+<div class="abs box" style="left:1640px;top:230px;width:700px;height:350px;border-top:10px solid var(--blue)">
+  <h3><span class="ic" style="background:var(--blue)">✈</span>Telegram chatbot</h3>
+  <div class="sub">PMs, Program &amp; Portfolio Managers</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:6px">
+    <ul>
+      <li>1 Total projects</li><li>2 By category</li><li>3 By region</li><li>4 By program</li>
+    </ul>
+    <ul>
+      <li>5 By portfolio</li><li>6 Data quality</li><li>7 Status by ID (all 19 KPIs)</li><li>A chart for every option</li>
+    </ul>
+  </div>
+  <div style="margin-top:14px;padding:12px 14px;background:#F6F8FC;border-radius:14px;font-size:17px;line-height:1.4">
+    <b>Scheduled status report</b> · 07:00 &amp; 15:00 CDMX, one message per manager<br>
+    <b>Every report ends with an AI "how to correct" guide</b>
+  </div>
+</div>
+
+<div class="abs box" style="left:1640px;top:640px;width:700px;height:690px;border-top:10px solid var(--navy)">
+  <h3><span class="ic" style="background:var(--navy)">🌐</span>Web · hatchvps.com/iaang01/edgarcruz</h3>
+  <div class="page-row"><div class="n">/</div><div class="d"><b>Landing · Proyecto Final Edgar Cruz</b><br>Agent overview and links to both dashboards</div></div>
+  <div class="page-row"><div class="n">/app/</div><div class="d"><b>Bot usage dashboard</b> (Streamlit)<br>Bot status, requests, last DB query, Cerbero audit log &amp; chain integrity</div></div>
+  <div class="page-row"><div class="n">/dashboard/</div><div class="d"><b>Portfolio Health Dashboard</b> (React)<br>19 KPIs in charts, filters, bar / column / donut toggle, PDF export</div></div>
+  <div class="page-row" style="background:#FFF6EF"><div class="n" style="color:#B4561A">kpis.json</div><div class="d">Hourly KPI snapshot exported by Cronos → Thanatos (no credentials)</div></div>
+  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div style="border:2px solid var(--line);border-radius:14px;padding:12px 14px;font-size:16px;line-height:1.4"><b style="color:var(--navy)">Scheduled flow</b><br>DB → Cronos → Thanatos → kpis.json → dashboard, every hour</div>
+    <div style="border:2px solid var(--line);border-radius:14px;padding:12px 14px;font-size:16px;line-height:1.4"><b style="color:var(--rad)">On-demand flow</b><br>Telegram → Radamantis → Cronos → Thanatos → Zeus reply in seconds</div>
+  </div>
+  <div style="margin-top:12px"><span class="chip">.env never public (HTTP 404 verified)</span><span class="chip">"Last DB query" shown top-right</span></div>
+</div>
+
+<!-- connectors -->
+<svg width="2400" height="1600" viewBox="0 0 2400 1600">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#28458E"/></marker>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0096D6"/></marker>
+    <marker id="t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#EB7B30"/></marker>
+  </defs>
+  <g fill="none" stroke-width="4" stroke-linecap="round">
+    <!-- DB -> Cronos -->
+    <path d="M460 400 H556" stroke="#28458E" marker-end="url(#a)"/>
+    <!-- Cronos -> Thanatos -> Zeus -->
+    <path d="M860 455 H896" stroke="#28458E" marker-end="url(#a)"/>
+    <path d="M1200 455 H1236" stroke="#28458E" marker-end="url(#a)"/>
+    <!-- Zeus -> Telegram -->
+    <path d="M1540 400 H1636" stroke="#0096D6" marker-end="url(#b)"/>
+    <!-- Telegram -> Radamantis -->
+    <path d="M1636 520 H1600 V790 H1544" stroke="#6250D6" marker-end="url(#a)" style="stroke:#6250D6"/>
+    <!-- Radamantis -> Cronos (on-demand) -->
+    <path d="M1180 700 V660 H710 V624" stroke="#6250D6" stroke-dasharray="10 8" marker-end="url(#a)" style="stroke:#6250D6"/>
+    <!-- Radamantis -> Zeus (reply) -->
+    <path d="M1420 700 V624" stroke="#6250D6" stroke-dasharray="10 8" marker-end="url(#a)" style="stroke:#6250D6"/>
+    <!-- Thanatos <-> AI -->
+    <path d="M960 620 V696" stroke="#0B6FAE" marker-start="url(#b)" marker-end="url(#b)" style="stroke:#0B6FAE"/>
+    <!-- GitHub -> agents -->
+    <path d="M460 900 H516" stroke="#28458E" marker-end="url(#a)"/>
+    <!-- Cerbero -> audit table -->
+    <path d="M520 700 H464" stroke="#EB7B30" stroke-dasharray="6 7" marker-end="url(#t)"/>
+    <!-- Thanatos export -> kpis.json -> web -->
+    <path d="M1580 1007 H1636" stroke="#0096D6" marker-end="url(#b)"/>
+    <!-- GitHub deploy -> web (bottom bus) -->
+    <path d="M260 1230 V1370 H1990 V1334" stroke="#28458E" stroke-dasharray="10 8" marker-end="url(#a)"/>
+    <!-- Radamantis runs inside /app/ -->
+    <path d="M1540 858 H1636" stroke="#6250D6" stroke-dasharray="10 8" marker-end="url(#a)" style="stroke:#6250D6"/>
+  </g>
+</svg>
+
+<!-- connector labels -->
+<div class="abs pill" style="left:466px;top:358px;font-size:13px">SQL read</div>
+<div class="abs pill" style="left:1552px;top:358px;font-size:13px;border-color:#0096D6;color:#0B6FAE">Bot API</div>
+<div class="abs pill" style="left:1548px;top:600px;font-size:13px;border-color:#6250D6;color:#6250D6">user requests</div>
+<div class="abs pill" style="left:780px;top:642px;font-size:13px;border-color:#6250D6;color:#6250D6">on demand: read → analyze</div>
+<div class="abs pill" style="left:1432px;top:648px;font-size:13px;border-color:#6250D6;color:#6250D6">reply</div>
+<div class="abs pill" style="left:972px;top:640px;font-size:13px;border-color:#0B6FAE;color:#0B6FAE;display:none">AI</div>
+<div class="abs pill" style="left:466px;top:858px;font-size:13px">triggers</div>
+<div class="abs pill t" style="left:448px;top:712px;font-size:13px">audit</div>
+<div class="abs pill" style="left:1506px;top:964px;font-size:13px;border-color:#0096D6;color:#0B6FAE">hourly KPI export</div>
+<div class="abs pill" style="left:1000px;top:1352px;font-size:13px">deploy &amp; publish (SFTP)</div>
+<div class="abs pill" style="left:1546px;top:816px;font-size:13px;border-color:#6250D6;color:#6250D6">runs in</div>
+
+<!-- stats -->
+<div class="abs stats">
+  <div class="stat"><b>5</b><span>AI agents working as one pipeline</span></div>
+  <div class="stat" style="border-top-color:var(--blue)"><b>19</b><span>standard status-report KPIs</span></div>
+  <div class="stat" style="border-top-color:var(--rad)"><b>7</b><span>bot options, each with a chart</span></div>
+  <div class="stat" style="border-top-color:var(--zeus)"><b>2×</b><span>status reports per weekday</span></div>
+  <div class="stat" style="border-top-color:var(--ai)"><b>1 h</b><span>dashboard refresh cycle</span></div>
+  <div class="stat" style="border-top-color:var(--tan)"><b>5</b><span>security gates on every action</span></div>
+  <div class="stat" style="border-top-color:var(--navy)"><b>10</b><span>data-quality rules</span></div>
+  <div class="stat" style="border-top-color:#1F2937"><b>114</b><span>automated tests</span></div>
+</div>
+<div class="abs foot">Synthetic demo data · PepsiCo-inspired palette (navy #28458E, electric blue #0096D6, tangelo #EB7B30) · Status colors are reserved for KPI health.</div>
+</body>
+</html>

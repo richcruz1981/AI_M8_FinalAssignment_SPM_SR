@@ -1,5 +1,7 @@
 # SR multi-agente para ServiceNow SPM — Cronos · Thanatos · Zeus
 
+**Arquitectura:** infografía [`docs/architecture/ecosystem_architecture.png`](docs/architecture/ecosystem_architecture.png) y descripción legible por LLMs [`docs/architecture/ARCHITECTURE_FOR_LLMS.md`](docs/architecture/ARCHITECTURE_FOR_LLMS.md).
+
 Proceso autónomo que lee la réplica de ServiceNow SPM, calcula los KPIs estándar del Status Report (19 indicadores en 3 niveles: Salud, Desempeño, Control) y los envía dos veces al día (07:00 y 15:00 CDMX, lunes a viernes) por Telegram al PM, PgM y PfM (el correo se retiró el 2026-10-18: no hay servidor SMTP).
 
 ```
