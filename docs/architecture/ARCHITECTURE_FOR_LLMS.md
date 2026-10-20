@@ -19,7 +19,7 @@ companion_image: ecosystem_architecture.png
 
 A Python system reads project data from a PostgreSQL replica of ServiceNow SPM, computes the 19 standard
 status-report KPIs with five cooperating agents, and delivers them through three channels: (1) scheduled status
-reports on Telegram (07:00 and 15:00 America/Mexico_City, Monday–Friday), (2) an interactive Telegram chatbot
+reports on Telegram (Wednesday and Friday at 07:00 America/Mexico_City), (2) an interactive Telegram chatbot
 answering 7 query types in real time, and (3) web dashboards on hatchvps.com (a React "Portfolio Health Dashboard"
 refreshed hourly and a Streamlit "bot usage" dashboard with the security audit log). A security agent (Cerbero)
 inspects every agent action and writes a hash-chained audit log. Claude (Anthropic API) writes executive narratives
@@ -51,7 +51,7 @@ flowchart LR
   subgraph DATA["① Data and orchestration"]
     DB[("PostgreSQL<br/>ServiceNow SPM replica")]
     AUD[(security_audit_log)]
-    GHA["GitHub Actions<br/>07:00 and 15:00 CDMX · hourly publish · deploy"]
+    GHA["GitHub Actions<br/>Wed and Fri 07:00 CDMX · hourly publish · deploy"]
   end
   subgraph AGENTS["② Agent layer, guarded by Cerbero"]
     CR[Cronos<br/>Reader]
@@ -89,7 +89,7 @@ flowchart LR
 
 | Flow | Trigger | Path | Output |
 |---|---|---|---|
-| F1 Scheduled status report | GitHub Actions cron `0 13 * * 1-5` and `0 21 * * 1-5` (07:00 / 15:00 CDMX) | SSH tunnel → Cronos → Thanatos (+ Claude) → Zeus → Telegram | One message per manager, ending with an AI corrective guide; idempotent per date + shift (`SR_SLOT` = am / pm / manual) |
+| F1 Scheduled status report | GitHub Actions cron `0 13 * * 3,5` (Wednesday and Friday 07:00 CDMX) | SSH tunnel → Cronos → Thanatos (+ Claude) → Zeus → Telegram | One message per manager, ending with an AI corrective guide; idempotent per date + run (`SR_SLOT` = scheduled / manual) |
 | F2 Chatbot request | User message on Telegram | Telegram → Cerbero inbound → Radamantis → Cronos (cached 60 s) → Thanatos → Claude guide → Zeus (outbound gate) → Telegram | Text + chart (PNG) + AI guide |
 | F3 Dashboard refresh | GitHub Actions every hour (`7 * * * *`) | SSH tunnel → Cronos → Thanatos → `kpis.json` → Vite build → SFTP to `/www/dashboard/` | Portfolio Health Dashboard with fresh data |
 | F4 Bot deploy | Manual workflow | Package `spm_sr.zip` + `app.py` + JSON config + `.env` → SFTP | Server restarts `app.py`, bot thread starts (long polling) |
@@ -176,7 +176,7 @@ Green `#00984A`, Amber `#E0A000`, Red `#DF002C`, No data `#A7AEBB`. Font: Inter.
 | Agents | 5 (Cronos, Thanatos, Zeus, Radamantis, Cerbero) |
 | KPIs | 19 |
 | Bot options | 7, each with a chart |
-| Scheduled status reports | 2 per weekday |
+| Scheduled status reports | 2 per week (Wed and Fri) |
 | Dashboard refresh | hourly |
 | Security gates | 5 |
 | Data-quality rules | 10 |

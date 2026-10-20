@@ -77,7 +77,7 @@ Secrets de GitHub (solo nombres): `DATABASE_URL`, `HATCH_KEY`, `TELEGRAM_TOKEN`,
 |---|---|---|
 | Cronos | Lector | Conecta (reintentos, errores clasificados E-CONN-01/02/03), lee proyectos, status reports y tablas auxiliares, aplica DQ-01…DQ-10, guarda en memoria, emite señal COMPLETED/PARTIAL/FAILED y reporte de fallas |
 | Thanatos | Analista | Calcula los 19 KPIs, compara salud declarada vs calculada, roll-ups por programa y portafolio, narrativa con IA y guía de corrección con IA |
-| Zeus | Comunicador | Un mensaje de Telegram por PM / PgM / PfM, idempotente por fecha + turno (`SR_SLOT` = am / pm / manual), con ritmo ≤1 msg/s por chat |
+| Zeus | Comunicador | Un mensaje de Telegram por PM / PgM / PfM, idempotente por fecha + corrida (`SR_SLOT` = programada / manual), con ritmo ≤1 msg/s por chat |
 | Radamantis | Ejecutor | Recibe las peticiones del bot en tiempo real, ejecuta Cronos → Thanatos (caché 60 s) y pide a Zeus responder |
 | Cerbero | Seguridad | Revisa cada acción de los agentes con 5 puertas, pone en cuarentena, detiene agentes y escribe el log de auditoría |
 Orquestador propio con estado compartido tipado y contratos Pydantic C1 (Cronos), C2 (Thanatos), C3 (Zeus).
@@ -92,14 +92,14 @@ planeadas inválidas o vacías · 05 avance sin inicio real · 06 sin costo o es
 correo · 08 salud declarada vacía · 09 registro duplicado · 10 sin región.
 
 ### 5. Reporte programado (SR)
-- GitHub Actions: lunes a viernes 07:00 y 15:00 America/Mexico_City (`0 13 * * 1-5`, `0 21 * * 1-5`). Las corridas
+- GitHub Actions: miércoles y viernes a las 07:00 America/Mexico_City (`0 13 * * 3,5`). Las corridas
   programadas envían de verdad; las manuales aceptan `dry_run`. Inputs de workflows siempre por `env:` y
   validados, nunca interpolados dentro de `run:`.
-- **IA en las dos corridas**: narrativa ejecutiva de programas y portafolios primero (≤60 llamadas por corrida);
+- **IA en cada corrida**: narrativa ejecutiva de programas y portafolios primero (≤60 llamadas por corrida);
   toda cifra de la IA debe existir en los datos o se usa la plantilla determinista.
 - Contenido en **inglés**. Cada mensaje termina con la guía de corrección (sección 7).
 - Frecuencias altas: cada corrida produce ~69 mensajes en el dataset del curso; advierte antes de programar algo
-  más frecuente que dos veces al día.
+  más frecuente que dos veces por semana.
 
 ### 6. Bot de Telegram (Radamantis)
 - Todo en **inglés**: menú, respuestas, gráficas, errores. Comandos `/total`, `/categories`, `/regions`,
@@ -182,7 +182,7 @@ Trabaja en estas fases, en orden; no avances si la anterior no pasa su criterio:
 | 4 | Bot Radamantis (7 opciones, gráficas, inglés) en `app.py` del servidor | Bot en "listening"; cada opción responde con texto, gráfica y guía |
 | 5 | Dashboards `/dashboard/` y `/app/`, portada `/` | HTTP 200 en las tres rutas, `.env` en 404, capturas en escritorio y celular sin scroll horizontal, PDF verificado |
 | 6 | Cerbero y log de auditoría | Ataques simulados bloqueados; cuarentena y HALT probados; cadena íntegra visible en `/app/` |
-| 7 | SR programado 07:00 / 15:00 con IA y guía | Simulacro en GitHub contra la BD real con anotación: BD, entregas, IA x/y, guías x/y |
+| 7 | SR programado miércoles y viernes 07:00 con IA y guía | Simulacro en GitHub contra la BD real con anotación: BD, entregas, IA x/y, guías x/y |
 
 Al cerrar cada fase responde con:
 1. Una línea de conclusión.

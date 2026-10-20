@@ -22,7 +22,7 @@ description: Publicar y verificar el proyecto SPM SR (bot Radamantis, portada y 
 |---|---|---|
 | Bot / `app.py` / config / paquete `spm_sr` | `deploy_bot.yml` | `.env` → 404, `/app/` → 200, getUpdates 409 (= bot escuchando) |
 | Dashboard React, portada, export de KPIs | `publish_dashboard.yml` (también corre cada hora) | `/`, `/dashboard/`, `/dashboard/data/kpis.json`, títulos |
-| Reporte SR | `daily_sr.yml` (07:00 y 15:00 CDMX L-V) | anotación `SR …` con BD, entregas e IA |
+| Reporte SR | `daily_sr.yml` (miércoles y viernes 07:00 CDMX) | anotación `SR …` con BD, entregas e IA |
 | Portada original | `fetch_original_index.yml` | solo si hay que re-respaldar `site/original_index.html` |
 
 ## Procedimiento

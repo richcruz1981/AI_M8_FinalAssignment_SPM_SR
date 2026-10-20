@@ -1,9 +1,8 @@
-name: SR dos veces al día (Cronos → Thanatos → Zeus)
+name: SR miércoles y viernes (Cronos → Thanatos → Zeus)
 
 on:
   schedule:
-    - cron: "0 13 * * 1-5"   # 07:00 America/Mexico_City (UTC-6), lunes a viernes — turno "am"
-    - cron: "0 21 * * 1-5"   # 15:00 America/Mexico_City (UTC-6), lunes a viernes — turno "pm"
+    - cron: "0 13 * * 3,5"   # 07:00 America/Mexico_City (UTC-6, sin horario de verano), miércoles y viernes
   workflow_dispatch:
     inputs:
       scope:
@@ -45,13 +44,13 @@ jobs:
       HAS_HATCH_KEY: ${{ secrets.HATCH_KEY != '' }}
       TUNNEL_SSH_TARGET: ${{ vars.TUNNEL_SSH_TARGET }}
       TUNNEL_REMOTE_PORT: ${{ vars.TUNNEL_REMOTE_PORT || '56432' }}
-      # Resumen con IA en las dos corridas programadas (07:00 y 15:00); manuales: variable LLM_ENABLED
+      # Resumen con IA en todas las corridas programadas (mié y vie 07:00); manuales: variable LLM_ENABLED
       LLM_ENABLED: ${{ github.event_name == 'schedule' && 'true' || vars.LLM_ENABLED || 'true' }}
       SCOPE: ${{ inputs.scope || vars.SCOPE || 'all' }}
       # Corridas programadas envían de verdad (SCHEDULE_DRY_RUN=true las pone en simulacro); manuales: input dry_run
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || vars.SCHEDULE_DRY_RUN || 'false' }}
-      # Turno para la idempotencia: un envío por persona por turno (am/pm); cada corrida manual es su propio turno
-      SR_SLOT: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 21 * * 1-5' && 'pm' || 'am') || format('manual-{0}', github.run_id) }}
+      # Turno para la idempotencia: un envío por persona por corrida programada; cada corrida manual es su propio turno
+      SR_SLOT: ${{ github.event_name == 'schedule' && 'am' || format('manual-{0}', github.run_id) }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || secrets.TELEGRAM_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ADMIN_TELEGRAM_CHAT_ID: ${{ secrets.ADMIN_TELEGRAM_CHAT_ID || secrets.TELEGRAM_CHAT_ID || secrets.TELEGRAM_ID }}

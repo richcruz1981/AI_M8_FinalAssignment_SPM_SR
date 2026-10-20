@@ -15,7 +15,7 @@ description: Cambiar textos, idioma, horario, KPIs o uso de IA del Status Report
 | Narrativa, alertas y prompt de la IA | `src/spm_sr/thanatos/narrative.py` (`SYSTEM_PROMPT`, `top_alerts`, plantillas) |
 | Orden y presupuesto de llamadas a la IA | `src/spm_sr/thanatos/agent.py` (roll-ups primero) y `config/settings.yaml` → `llm.max_calls` |
 | Cálculo de KPIs 1-19 | `src/spm_sr/thanatos/kpi_rules.py`, `control.py`, `rollup.py`; umbrales en `config/thresholds.yaml` |
-| Horario / envío real / turnos | `.github/workflows/daily_sr.yml` (cron UTC; CDMX = UTC-6; `SR_SLOT` am/pm/manual) |
+| Horario / envío real / turnos | `.github/workflows/daily_sr.yml` (cron UTC; CDMX = UTC-6; `SR_SLOT` programada/manual; hoy `0 13 * * 3,5` = mié y vie 07:00 CDMX) |
 | Guía "how to correct" (IA) al final de cada reporte | `src/spm_sr/thanatos/guidance.py` (`PLAYBOOK`, `SYSTEM_PROMPT`, situaciones); bloque en `zeus/render.py` → `guide_block`; config `guidance` en `settings.yaml`. Solo la corrida del SR genera guías por destinatario (`per_recipient`); bot y export no |
 | Reporte de fallas | `src/spm_sr/core/reporting.py` |
 | Reglas de seguridad | `src/spm_sr/cerbero/rules.py` (ver skill `cerbero-revision`) |
@@ -52,6 +52,6 @@ Los valores internos siguen en español (`Verde`, `En progreso`, `Alta`): solo l
 | Riesgo | Control |
 |---|---|
 | Frecuencias altas (p. ej. cada 10 min) | ~69 mensajes por corrida; Telegram limita ~1 msg/s por chat. Advertir antes de programar |
-| Costo de IA | ≤60 llamadas por corrida; dos corridas/día |
+| Costo de IA | ≤60 llamadas de narrativa + ≤69 guías por corrida; dos corridas por semana |
 | Duplicados | Idempotencia por `fecha|SR_SLOT|destinatario` en `runs/ledger.json` (caché de Actions) |
 | Inputs de workflows | Pasar por `env:` y validar; nunca `${{ inputs.* }}` dentro de `run:` |
